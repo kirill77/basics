@@ -1,5 +1,6 @@
 #pragma once
 #include <cmath>
+#include <initializer_list>
 #include "mybasics.h"
 
 // Macro to define conversion and subscript operators
