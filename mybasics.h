@@ -16,30 +16,43 @@ typedef unsigned long long NvU64;
 template <class T> inline T sqr(const T & a) { return a * a; }
 
 template <class T>
-class MyNumericLimits
+class MyNumeric
 {
 };
 template <>
-struct MyNumericLimits<float>
+struct MyNumeric<float>
 {
     typedef NvU32 SubstituteUintType;
     static NvU32 topBit() { return 0x80000000U; }
+    static float milliSecond() { return 0.001f; }
+    static float microMeter() { return 1e-6f; }
 };
 template <>
-struct MyNumericLimits<double>
+struct MyNumeric<double>
 {
     typedef NvU64 SubstituteUintType;
     static NvU64 topBit() { return 0x8000000000000000ULL; }
+    static double milliSecond() { return 0.001; }
+    static double microMeter() { return 1e-6; }
 };
 template <class floatType>
 inline bool aboutEqual(floatType f1, floatType f2)
 {
-    typedef MyNumericLimits<floatType>::SubstituteUintType uintType;
-    const uintType topBit = MyNumericLimits<floatType>::topBit();
+    typedef MyNumeric<floatType>::SubstituteUintType uintType;
+    const uintType topBit = MyNumeric<floatType>::topBit();
     uintType u1 = (uintType &)f1, u2 = (uintType &)f2;
     bool haveDifferentSign = (u1 ^ u2) & topBit;
     u1 &= ~topBit;
     u2 &= ~topBit;
     uintType dist = haveDifferentSign ? (u1 + u2) : (u1 > u2 ? u1 - u2 : u2 - u1);
     return dist < 20;
+}
+
+template <class T>
+void nvSwap(T& a, T& b)
+{
+    T c;
+    c = a;
+    a = b;
+    b = c;
 }
