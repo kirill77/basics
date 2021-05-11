@@ -39,41 +39,21 @@ struct rtvector
 template <typename T>
 struct rtvector<T, 2>
 {
-    union {
-        T m_data[2];
-        struct { T x, y; };
-        struct { T u, v; };
-    };
+    T m_data[2];
     VECTOR_MEMBERS(T, 2)
 };
 
 template <typename T>
 struct rtvector<T, 3>
 {
-    union {
-        T m_data[3];
-        struct { T x, y, z; };
-        struct { T r, g, b; };
-        struct { T u, v; };
-        rtvector<T, 2> xy;
-        rtvector<T, 2> uv;
-    };
+    T m_data[3];
     VECTOR_MEMBERS(T, 3)
 };
 
 template <typename T>
 struct rtvector<T, 4>
 {
-    union {
-        T m_data[4];
-        struct { T x, y, z, w; };
-        struct { T r, g, b, a; };
-        struct { T u, v; };
-        rtvector<T, 2> xy;
-        rtvector<T, 2> uv;
-        rtvector<T, 3> xyz;
-        rtvector<T, 3> rgb;
-    };
+    T m_data[4];
     VECTOR_MEMBERS(T, 4)
 };
 
@@ -115,43 +95,14 @@ rtvector<T, n> makevector(rtvector<U, n_from> const& a)
 #define DEFINE_CONCRETE_VECTORS(type) \
 			typedef rtvector<type, 2> type##2; \
 			typedef rtvector<type, 3> type##3; \
-			typedef rtvector<type, 4> type##4; \
-			typedef rtvector<type, 2> const & type##2_arg; \
-			typedef rtvector<type, 3> const & type##3_arg; \
-			typedef rtvector<type, 4> const & type##4_arg; \
-			inline type##2 make##type##2(type x, type y) \
-				{ type##2 v = { x, y }; return v; } \
-			template <typename T> \
-			inline type##2 make##type##2(T a) \
-				{ return makevector<type, 2>(a); } \
-            inline type##2 make##type##2(type *d) \
-				{ type##2 v = { d[0], d[1] }; return v; } \
-			inline type##3 make##type##3(type x, type y, type z) \
-				{ type##3 v = { x, y, z }; return v; } \
-			inline type##3 make##type##3(type##2_arg xy, type z) \
-				{ type##3 v = { xy.x, xy.y, z }; return v; } \
-			template <typename T> \
-			inline type##3 make##type##3(T a) \
-				{ return makevector<type, 3>(a); } \
-            inline type##3 make##type##3(type *d) \
-				{ type##3 v = { d[0], d[1], d[2] }; return v; } \
-			inline type##4 make##type##4(type x, type y, type z, type w) \
-				{ type##4 v = { x, y, z, w }; return v; } \
-            inline type##4 make##type##4(type *d) \
-				{ type##4 v = { d[0], d[1],d[2], d[3] }; return v; } \
-			inline type##4 make##type##4(type##2_arg xy, type z, type w) \
-				{ type##4 v = { xy.x, xy.y, z, w }; return v; } \
-			inline type##4 make##type##4(type##3_arg xyz, type w) \
-				{ type##4 v = { xyz.x, xyz.y, xyz.z, w }; return v; } \
-			template <typename T> \
-			inline type##4 make##type##4(T a) \
-				{ return makevector<type, 4>(a); }
+			typedef rtvector<type, 4> type##4;
 
 DEFINE_CONCRETE_VECTORS(float);
 DEFINE_CONCRETE_VECTORS(double);
 //DEFINE_CONCRETE_VECTORS(half);	// !!!UNDONE: need to de-constructorize half
 DEFINE_CONCRETE_VECTORS(int);
-DEFINE_CONCRETE_VECTORS(NvU32);
+typedef NvU32 uint;
+DEFINE_CONCRETE_VECTORS(uint);
 //DEFINE_CONCRETE_VECTORS(byte);
 //DEFINE_CONCRETE_VECTORS(bool);
 
