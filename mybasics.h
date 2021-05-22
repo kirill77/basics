@@ -24,16 +24,12 @@ struct MyNumeric<float>
 {
     typedef NvU32 SubstituteUintType;
     static NvU32 topBit() { return 0x80000000U; }
-    static float milliSecond() { return 0.001f; }
-    static float microMeter() { return 1e-6f; }
 };
 template <>
 struct MyNumeric<double>
 {
     typedef NvU64 SubstituteUintType;
     static NvU64 topBit() { return 0x8000000000000000ULL; }
-    static double milliSecond() { return 0.001; }
-    static double microMeter() { return 1e-6; }
 };
 template <class floatType>
 inline bool aboutEqual(floatType f1, floatType f2)

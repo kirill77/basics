@@ -5,6 +5,9 @@
 template <class T>
 struct BBox3
 {
+    BBox3() { }
+    BBox3(const rtvector<T, 3>& vMin, const rtvector<T, 3>& vMax) : m_vMin(vMin), m_vMax(vMax) { }
+
     void include(const rtvector<T, 3>& v)
     {
         m_vMin = vmin(v, m_vMin);
@@ -15,6 +18,7 @@ struct BBox3
     const rtvector<T, 3>& operator[](NvU32 u) const { nvAssert(u < 2); return (&m_vMin)[u]; }
     rtvector<T, 3>& operator[](NvU32 u) { nvAssert(u < 2); return (&m_vMin)[u]; }
     rtvector<T, 3> computeCenter() const { return (m_vMin + m_vMax) / (T)2; }
+
     rtvector<T, 3> m_vMin, m_vMax;
 };
 

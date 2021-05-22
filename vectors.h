@@ -21,7 +21,8 @@
 			   happen implicitly through array conversions) */ \
             rtvector() { } \
             rtvector(std::initializer_list<T> inputs) { nvAssert(inputs.size() == n); for (NvU32 u = 0; u < n; ++u) m_data[u] = inputs.begin()[u]; } \
-			private: operator bool();
+            void set(T s) { for (int i = 0; i < n; ++i) m_data[i] = s; } \
+            private: operator bool();
 
 // Generic rtvector struct, providing storage, using partial
 // specialization to get names (xyzw) for n <= 4
@@ -63,7 +64,7 @@ struct rtvector<T, 4>
 // Generic maker functions
 
 template <typename T, int n>
-rtvector<T, n> makevector(T a)
+rtvector<T, n> makeVector(T a)
 {
     rtvector<T, n> result;
     for (int i = 0; i < n; ++i)
@@ -72,7 +73,7 @@ rtvector<T, n> makevector(T a)
 }
 
 template <typename T, int n, typename U>
-rtvector<T, n> makevector(const U* a)
+rtvector<T, n> makeVector(const U* a)
 {
     rtvector<T, n> result;
     for (int i = 0; i < n; ++i)
@@ -81,9 +82,9 @@ rtvector<T, n> makevector(const U* a)
 }
 
 template <typename T, int n, typename U, int n_from>
-rtvector<T, n> makevector(rtvector<U, n_from> const& a)
+rtvector<T, n> makeVector(rtvector<U, n_from> const& a)
 {
-    auto result = makevector<T, n>(T(0));
+    auto result = makeVector<T, n>(T(0));
     for (int i = 0; i < min(n, n_from); ++i)
         result[i] = T(a[i]);
     return result;
@@ -405,7 +406,7 @@ rtvector<T, n> abs(rtvector<T, n> const& a)
 template <typename T, int n>
 rtvector<T, n> saturate(rtvector<T, n> const& value)
 {
-    return clamp(value, makevector<T, n>(0), makevector<T, n>(1));
+    return clamp(value, makeVector<T, n>(0), makeVector<T, n>(1));
 }
 
 template <typename T, int n>
