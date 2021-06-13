@@ -41,6 +41,7 @@ struct BondsDataBase
             MyUnits<T> fPow12 = fPow6 * fPow6;
             out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
             MyUnits<T> fForce = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
+            nvAssert(!isnan(fForce.m_value));
             out.vForce = vSrcToDstDir * (fForce / fRPow2);
             return true;
         }
