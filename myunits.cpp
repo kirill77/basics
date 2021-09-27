@@ -133,6 +133,38 @@ void MyUnitsTest::test()
             }
         }
     }
+
+    // check that our temperature and pressure formulas match reality
+    {
+        MyUnits<double> fMass = BondsDataBase<double>::getAtom(NPROTONS_O).m_fMass + BondsDataBase<double>::getAtom(NPROTONS_H).m_fMass * 2;
+        // the mass of water molecule must be about 18.01528 g/mol - check that
+        MyUnits<double> fMass1 = MyUnits<double>::gram() * 18.01528 / AVOGADRO;
+        s_bTested = s_bTested && aboutEqual<double>(fMass.m_value, fMass1.m_value, 0.1);
+        nvAssert(s_bTested);
+        // https://www.verticallearning.org/curriculum/science/gr7/student/unit01/page05.html
+        // we know "approximate" speed of water molecules must be at different temperatures
+        {
+            MyUnits<double> fSpeedC0 = MyUnits<double>::meter() * 565 / MyUnits<double>::second();
+            auto fTempC0 = MyUnits<double>::evalTemperature(fMass1 * fSpeedC0 * fSpeedC0 / 2);
+            double f = fTempC0.toCelcius();
+            s_bTested = s_bTested && aboutEqual<double>(f, 0, 0.1);
+            nvAssert(s_bTested);
+        }
+        {
+            MyUnits<double> fSpeedC20 = MyUnits<double>::meter() * 590 / MyUnits<double>::second();
+            auto fTempC20 = MyUnits<double>::evalTemperature(fMass1 * fSpeedC20 * fSpeedC20 / 2);
+            double f = fTempC20.toCelcius();
+            s_bTested = s_bTested && aboutEqual<double>(f, 24.707357663090249, 0.1);
+            nvAssert(s_bTested);
+        }
+        {
+            MyUnits<double> fSpeedC100 = MyUnits<double>::meter() * 660 / MyUnits<double>::second();
+            auto fTempC100 = MyUnits<double>::evalTemperature(fMass1 * fSpeedC100 * fSpeedC100 / 2);
+            double f = fTempC100.toCelcius();
+            s_bTested = s_bTested && aboutEqual<double>(f, 99.578138460333548, 0.1);
+            nvAssert(s_bTested);
+        }
+    }
 }
 bool MyUnitsTest::s_bTested = false;
 

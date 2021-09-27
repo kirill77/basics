@@ -43,6 +43,13 @@ inline bool aboutEqual(floatType f1, floatType f2)
     uintType dist = haveDifferentSign ? (u1 + u2) : (u1 > u2 ? u1 - u2 : u2 - u1);
     return dist < 20;
 }
+template <class floatType>
+inline bool aboutEqual(floatType f1, floatType f2, floatType fPercent)
+{
+    if (abs(f1 + f2) < 1e-20) return true;
+    floatType percentDifference = 2 * abs(f1 - f2) / (f1 + f2);
+    return percentDifference < fPercent;
+}
 
 template <class T>
 void nvSwap(T& a, T& b)

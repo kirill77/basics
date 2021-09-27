@@ -44,12 +44,19 @@ bool operator > (T s) const { return this->m_value > s; }
 #define ELECTRON_CHARGE ELECTRON_DEC(e-19)
 #define DALTON_DEC(X) 1.660539066605##X
 #define DALTON DALTON_DEC(e-27)
+#define AVOGADRO 6.02214076e23
 
 // those constants define base units used at atomic scales
+#define TO_GRAMS 1e-17
 #define TO_KILOGRAMS 1e-20
 #define TO_METERS 1e-8
 #define TO_COLOUMBS (ELECTRON_CHARGE)
 #define TO_SECONDS 1e-6
+#define TO_NANOSECONDS 1e3
+#define TO_FEMTOSECONDS 1e9
+static_assert(TO_NANOSECONDS / TO_SECONDS == 1e9, "Contradictory time defines");
+static_assert(TO_FEMTOSECONDS / TO_SECONDS == 1e15, "Contradictory time defines");
+
 template <class _T>
 struct MyUnits
 {
@@ -61,16 +68,22 @@ struct MyUnits
     void clear() { m_value = 0; }
 
     //*** constructors
+    static MyUnits<T> second() { return MyUnits<T>((T)(1. / TO_SECONDS)); }
     static MyUnits<T> milliSecond() { return MyUnits<T>((T)(1e-3 / TO_SECONDS)); }
     static MyUnits<T> nanoSecond() { return MyUnits<T>((T)(1e-6 / TO_SECONDS)); }
+    static MyUnits<T> meter() { return MyUnits<T>((T)(1. / TO_METERS)); }
     static MyUnits<T> microMeter() { return MyUnits<T>((T)(1e-6 / TO_METERS)); }
     static MyUnits<T> nanoMeter() { return MyUnits<T>((T)(1e-9 / TO_METERS)); }
     static MyUnits<T> angstrom() { return MyUnits<T>((T)(1e-10 / TO_METERS)); }
     static MyUnits<T> picometer() { return MyUnits<T>((T)(1e-12 / TO_METERS)); }
     static MyUnits<T> electron() { return MyUnits<T>((T)(ELECTRON_CHARGE / TO_COLOUMBS)); }
     static MyUnits<T> dalton() { return MyUnits<T>((T)(DALTON / TO_KILOGRAMS)); }
-    static MyUnits<T> kJperMole() { return MyUnits<T>((T)(1e3 / 6.02214076e23 / TO_KILOGRAMS / TO_METERS / TO_METERS * TO_SECONDS * TO_SECONDS)); }
+    static MyUnits<T> gram() { return MyUnits<T>((T)(1e-3 / TO_KILOGRAMS)); }
+    static MyUnits<T> kJperMole() { return MyUnits<T>((T)(1e3 / AVOGADRO / TO_KILOGRAMS / TO_METERS / TO_METERS * TO_SECONDS * TO_SECONDS)); }
     static MyUnits<T> joule() { return MyUnits<T>((T)(1. / TO_KILOGRAMS / TO_METERS / TO_METERS * TO_SECONDS * TO_SECONDS)); }
+    static MyUnits<T> evalTemperature(MyUnits<T> fAvgKinEnergy) { nvAssert(MyUnitsTest::wasTested()); return fAvgKinEnergy; }
+    static MyUnits<T> evalPressure(MyUnits<T> fTtlKinEnergy, MyUnits<T> fVolume, NvU32 nParticles) { nvAssert(MyUnitsTest::wasTested()); return fTtlKinEnergy / fVolume; }
+    static MyUnits<T> celcius(T f) { return MyUnits<T>((f + 273.15) / 0.057206343665358900); }
 
     //*** base units
     T toKilograms() { return (T)(this->m_value * TO_KILOGRAMS); }
@@ -80,10 +93,14 @@ struct MyUnits
     T toColoumbs() { return (T)(this->m_value * TO_COLOUMBS); }
 
     //*** derived units
-    T toNewtons() { return (T)(this->m_value * (TO_KILOGRAMS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toMetersPerSecond2() { return (T)(this->m_value * (TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toJoules() { return (T)(this->m_value * (TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toKJperMole() { return (T)(this->m_value * (1e-3 * 6.02214076e23 * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    T toNewtons() const { return (T)(this->m_value * (TO_KILOGRAMS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    T toNanoseconds() const { return (T)(this->m_value * TO_NANOSECONDS); }
+    T toFemtoseconds() const { return (T)(this->m_value * TO_FEMTOSECONDS); }
+    T toMetersPerSecond2() const { return (T)(this->m_value * (TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    T toJoules() const { return (T)(this->m_value * (TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    T toKJperMole() const { return (T)(this->m_value * (1e-3 * AVOGADRO * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    T toCelcius() const { return (T)this->m_value * 0.057206343665358900 - 273.15; }
+    T toAtmospheres() const { return (T)this->m_value * 1e-10; }
 };
 
 namespace std
