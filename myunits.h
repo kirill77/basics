@@ -51,11 +51,13 @@ bool operator > (T s) const { return this->m_value > s; }
 #define TO_KILOGRAMS 1e-20
 #define TO_METERS 1e-8
 #define TO_COLOUMBS (ELECTRON_CHARGE)
-#define TO_SECONDS 1e-6
-#define TO_NANOSECONDS 1e3
-#define TO_FEMTOSECONDS 1e9
-static_assert(TO_NANOSECONDS / TO_SECONDS == 1e9, "Contradictory time defines");
-static_assert(TO_FEMTOSECONDS / TO_SECONDS == 1e15, "Contradictory time defines");
+constexpr double TO_SECONDS = 1e-9;
+constexpr double TO_NANOSECONDS = TO_SECONDS * 1e9;
+constexpr double TO_FEMTOSECONDS = TO_SECONDS * 1e15;
+constexpr double oaue1 = TO_NANOSECONDS / TO_SECONDS;
+static_assert(oaue1 > 0.999999999e9 && oaue1 < 1.00000001e9, "Contradictory time defines");
+constexpr double oaue2 = TO_FEMTOSECONDS / TO_SECONDS;
+static_assert(oaue2 > 0.99999999e15 && oaue2 < 1.0000001e15, "Contradictory time defines");
 
 template <class _T>
 struct MyUnits
@@ -99,7 +101,7 @@ struct MyUnits
     T toMetersPerSecond2() const { return (T)(this->m_value * (TO_METERS / TO_SECONDS / TO_SECONDS)); }
     T toJoules() const { return (T)(this->m_value * (TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
     T toKJperMole() const { return (T)(this->m_value * (1e-3 * AVOGADRO * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toCelcius() const { return (T)this->m_value * 0.057206343665358900 - 273.15; }
+    T toCelcius() const { return (T)(this->m_value * (57206.3436653589e-18 / TO_SECONDS / TO_SECONDS) - 273.15); }
     T toAtmospheres() const { return (T)this->m_value * 1e-10; }
 };
 

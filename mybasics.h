@@ -47,7 +47,7 @@ template <class floatType>
 inline bool aboutEqual(floatType f1, floatType f2, floatType fPercent)
 {
     if (abs(f1 + f2) < 1e-20) return true;
-    floatType percentDifference = 2 * abs(f1 - f2) / (f1 + f2);
+    floatType percentDifference = abs(2 * (f1 - f2) / (f1 + f2));
     return percentDifference < fPercent;
 }
 
