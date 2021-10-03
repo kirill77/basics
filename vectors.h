@@ -166,6 +166,14 @@ DEFINE_CONCRETE_VECTORS(uint);
 				for (int i = 0; i < n; ++i) \
 					a[i] op b; \
 				return a; \
+			} \
+			/* for rtvector<MyUnits<>, n> to work */ \
+			template <typename T, int n> \
+			rtvector<T, n> & operator op (rtvector<T, n> & a, typename T::T b) \
+			{ \
+				for (int i = 0; i < n; ++i) \
+					a[i] op b; \
+				return a; \
 			}
 
 #define DEFINE_RELATIONAL_OPERATORS(op) \
