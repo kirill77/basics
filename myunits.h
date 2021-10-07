@@ -74,6 +74,7 @@ struct MyUnits
     static MyUnits<T> milliSecond() { return MyUnits<T>((T)(1e-3 / TO_SECONDS)); }
     static MyUnits<T> nanoSecond() { return MyUnits<T>((T)(1e-6 / TO_SECONDS)); }
     static MyUnits<T> meter() { return MyUnits<T>((T)(1. / TO_METERS)); }
+    static MyUnits<T> milliLiter() { return MyUnits<T>((T)(1e-6 / TO_METERS / TO_METERS / TO_METERS)); }
     static MyUnits<T> microMeter() { return MyUnits<T>((T)(1e-6 / TO_METERS)); }
     static MyUnits<T> nanoMeter() { return MyUnits<T>((T)(1e-9 / TO_METERS)); }
     static MyUnits<T> angstrom() { return MyUnits<T>((T)(1e-10 / TO_METERS)); }
