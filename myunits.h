@@ -38,19 +38,17 @@ bool operator < (T s) const { return this->m_value < s; } \
 bool operator > (X s) const { return this->m_value > s.m_value; } \
 bool operator > (T s) const { return this->m_value > s; }
 
-#define COLOUMB_DEC(X) 8.9875517923##X
-#define COLOUMB_CONSTANT COLOUMB_DEC(e9)
-#define ELECTRON_DEC(X) 1.602176634##X
-#define ELECTRON_CHARGE ELECTRON_DEC(e-19)
+static constexpr double COLOUMB_CONSTANT = 8.987551792314e9;
+static constexpr double ELECTRON_CHARGE = 1.602176634e-19;
 #define DALTON_DEC(X) 1.660539066605##X
 #define DALTON DALTON_DEC(e-27)
 #define AVOGADRO 6.02214076e23
 
 // those constants define base units used at atomic scales
-#define TO_GRAMS 1e-17
-#define TO_KILOGRAMS 1e-20
-#define TO_METERS 1e-8
-#define TO_COLOUMBS (ELECTRON_CHARGE)
+static constexpr double TO_GRAMMS = 1e-17;
+static constexpr double TO_KILOGRAMS = 1e-20;
+static constexpr double TO_METERS = 1e-8;
+static constexpr double TO_COLOUMBS = ELECTRON_CHARGE;
 constexpr double TO_SECONDS = 1e-9;
 constexpr double TO_NANOSECONDS = TO_SECONDS * 1e9;
 constexpr double TO_FEMTOSECONDS = TO_SECONDS * 1e15;
@@ -79,8 +77,9 @@ struct MyUnits
     static MyUnits<T> nanoMeter() { return MyUnits<T>((T)(1e-9 / TO_METERS)); }
     static MyUnits<T> angstrom() { return MyUnits<T>((T)(1e-10 / TO_METERS)); }
     static MyUnits<T> picometer() { return MyUnits<T>((T)(1e-12 / TO_METERS)); }
-    static MyUnits<T> electron() { return MyUnits<T>((T)(ELECTRON_CHARGE / TO_COLOUMBS)); }
+    static MyUnits<T> electronCharge() { return MyUnits<T>((T)(ELECTRON_CHARGE / TO_COLOUMBS)); }
     static MyUnits<T> dalton() { return MyUnits<T>((T)(DALTON / TO_KILOGRAMS)); }
+    static MyUnits<T> electronMass() { return MyUnits<T>((T)(9.1093837015e-31 / TO_KILOGRAMS)); }
     static MyUnits<T> gram() { return MyUnits<T>((T)(1e-3 / TO_KILOGRAMS)); }
     static MyUnits<T> kJperMole() { return MyUnits<T>((T)(1e3 / AVOGADRO / TO_KILOGRAMS / TO_METERS / TO_METERS * TO_SECONDS * TO_SECONDS)); }
     static MyUnits<T> joule() { return MyUnits<T>((T)(1. / TO_KILOGRAMS / TO_METERS / TO_METERS * TO_SECONDS * TO_SECONDS)); }
@@ -88,8 +87,8 @@ struct MyUnits
     static MyUnits<T> evalPressure(MyUnits<T> fTtlKinEnergy, MyUnits<T> fVolume, NvU32 nParticles) { nvAssert(MyUnitsTest::wasTested()); return fTtlKinEnergy / fVolume; }
 
     // convertion between kinetic energy and temperature
-    T toCelcius() const { return (T)(this->m_value * (57206.3436653589e-18 / TO_SECONDS / TO_SECONDS) - 273.15); }
-    static MyUnits<T> fromCelcius(T fValue) { return MyUnits<T>((fValue + 273.15) / (57206.3436653589e-18 / TO_SECONDS / TO_SECONDS)); }
+    T toCelcius() const { return (T)(this->m_value * (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS) - 273.15); }
+    static MyUnits<T> fromCelcius(T fValue) { return MyUnits<T>((fValue + 273.15) / (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
 
     //*** base units
     T toKilograms() { return (T)(this->m_value * TO_KILOGRAMS); }
@@ -130,24 +129,47 @@ inline const rtvector<UNITS, 3>& setUnits(const rtvector<typename UNITS::T, 3>& 
 template <class UNITS>
 inline const BBox3<UNITS>& setUnits(const BBox3<typename UNITS::T>& box) { return (const BBox3<UNITS> &)box; }
 
-template <class T1, class T2, class T3>
-rtvector<MyUnits<T1>, 3> coloumbLaw(const rtvector<MyUnits<T1>, 3> &dstPos, MyUnits<T2> dstCharge, const rtvector<MyUnits<T1>, 3>& srcPos, MyUnits<T3> srcCharge)
+template <class T>
+MyUnits<T> coloumbLaw(MyUnits<T> fCharge1, MyUnits<T> fCharge2, MyUnits<T> fDist, MyUnits<T> fDistSQR)
 {
     nvAssert(MyUnitsTest::wasTested());
-
-    rtvector<T1, 3> vDir = removeUnits(dstPos) - removeUnits(srcPos);
-    T1 fDistSqr = lengthSquared(vDir);
-    nvAssert(fDistSqr > 1e-15);
-    T1 fDist = sqrt(fDistSqr);
-    nvAssert(dstCharge.m_value * srcCharge.m_value != 0); // performance warning
-    T1 fForce = dstCharge.m_value * srcCharge.m_value / fDistSqr * ((ELECTRON_CHARGE / (TO_METERS * TO_METERS * TO_METERS)) * (COLOUMB_CONSTANT * TO_SECONDS) * TO_SECONDS * (ELECTRON_CHARGE / TO_KILOGRAMS));
-    rtvector<T1, 3> vForce = vDir * (fForce / fDist);
-
-    return setUnits<MyUnits<T1>>(vForce);
+    return fCharge1 * fCharge2 / fDistSQR * ((TO_COLOUMBS / (TO_METERS * TO_METERS * TO_METERS)) * (COLOUMB_CONSTANT * TO_SECONDS) * TO_SECONDS * (TO_COLOUMBS / TO_KILOGRAMS));
 }
 
 template <class T>
-T coloumbLaw(T fCharge1, T fCharge2, T fDist, T fDistSQR) { return fCharge1 * fCharge2 * COLOUMB_CONSTANT / fDistSQR; }
+rtvector<MyUnits<T>, 3> coloumbLaw(const rtvector<MyUnits<T>, 3> &dstPos, MyUnits<T> dstCharge, const rtvector<MyUnits<T>, 3>& srcPos, MyUnits<T> srcCharge)
+{
+    nvAssert(MyUnitsTest::wasTested());
+
+    auto vDir = dstPos - srcPos;
+    MyUnits<T> fDistSqr = lengthSquared(vDir);
+    nvAssert(fDistSqr > 1e-15);
+    MyUnits<T> fDist = sqrt(fDistSqr);
+    nvAssert(dstCharge.m_value * srcCharge.m_value != 0); // performance warning
+    MyUnits<T> fForce = coloumbLaw<T>(dstCharge, srcCharge, fDist, fDistSqr);
+    auto vForce = vDir * (fForce / fDist);
+
+    return vForce;
+}
+
+template <class T>
+T coloumbLawSI(T fCharge1, T fCharge2, T fDist, T fDistSQR)
+{
+    return fCharge1 * fCharge2 * COLOUMB_CONSTANT / fDistSQR;
+}
+
+template <class T>
+T chargePotentialEnergySI(T fCharge1, T fCharge2, T fDist)
+{
+    nvAssert(MyUnitsTest::wasTested());
+    return -fCharge1 * fCharge2 / fDist * COLOUMB_CONSTANT;
+}
+template <class T>
+MyUnits<T> chargePotentialEnergy(MyUnits<T> fCharge1, MyUnits<T> fCharge2, MyUnits<T> fDist)
+{
+    nvAssert(MyUnitsTest::wasTested());
+    return -fCharge1 * fCharge2 / fDist * ((TO_COLOUMBS / (TO_METERS * TO_METERS * TO_METERS)) * (COLOUMB_CONSTANT * TO_SECONDS) * TO_SECONDS * (TO_COLOUMBS / TO_KILOGRAMS));
+}
 
 template <class T1, class T2>
 rtvector<MyUnits<T2>, 3> newtonLaw(MyUnits<T1> fMass, const rtvector<MyUnits<T2>, 3>& vForce)

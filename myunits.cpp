@@ -22,12 +22,12 @@ void MyUnitsTest::test()
         rtvector<MyUnits<double>, 3> p1, p2;
         p2[uPass] = p1[uPass] + deltaS;
         // since we usually represent electrons with MyUnits<int>, check that charge of one electron is == 1
-        auto oneElectron = MyUnits<double>::electron();
+        auto oneElectron = MyUnits<double>::electronCharge();
         s_bTested = s_bTested && aboutEqual(oneElectron.m_value, 1.);
         nvAssert(s_bTested);
-        rtvector<MyUnits<double>, 3> vMyForce = coloumbLaw(p1, MyUnits<int>::electron() * -1, p2, MyUnits<int>::electron() * -1);
+        rtvector<MyUnits<double>, 3> vMyForce = coloumbLaw(p1, MyUnits<double>::electronCharge() * -1, p2, MyUnits<double>::electronCharge() * -1);
         // compute force in SI units
-        double fSIForce = coloumbLaw<double>(1.60217662e-19, 1.60217662e-19, deltaS.toMeters(), sqr(deltaS.toMeters()));
+        double fSIForce = coloumbLawSI<double>(1.60217662e-19, 1.60217662e-19, deltaS.toMeters(), sqr(deltaS.toMeters()));
         // convert and compare
         double fMySIForce = -vMyForce[uPass].toNewtons();
         double fPercentDifference = std::abs(fSIForce - fMySIForce) / fSIForce * 100;
@@ -145,7 +145,8 @@ void MyUnitsTest::test()
         // we know "approximate" speed of water molecules must be at different temperatures
         {
             MyUnits<double> fSpeedC0 = MyUnits<double>::meter() * 565 / MyUnits<double>::second();
-            auto fTempC0 = MyUnits<double>::evalTemperature(fMass1 * fSpeedC0 * fSpeedC0 / 2);
+            MyUnits<double> fKinEnergy = fMass1 * fSpeedC0 * fSpeedC0 / 2;
+            MyUnits<double> fTempC0 = MyUnits<double>::evalTemperature(fKinEnergy);
             double f = fTempC0.toCelcius();
             s_bTested = s_bTested && aboutEqual<double>(f, 0, 0.1);
             nvAssert(s_bTested);
@@ -164,6 +165,72 @@ void MyUnitsTest::test()
             s_bTested = s_bTested && aboutEqual<double>(f, 99.578138460333548, 0.1);
             nvAssert(s_bTested);
         }
+    }
+
+    typedef double T;
+
+    // test for correctness of constants for computing kinetic and potential energy of an electron - check that energy is conserved
+    // as particle is accelerating in electric field
+    // first compute in SI units
+    double fDisparity = 0;
+    {
+        double fInitialDistance = 1;
+        double fCurDistance = fInitialDistance;
+        double fInitialPotentialEnergy = chargePotentialEnergySI(1., 1., fCurDistance);
+        double fCurSpeed = 0;
+        while (fCurDistance * 2 > fInitialDistance)
+        {
+            double fCurForce = coloumbLawSI(1., 1., fCurDistance, fCurDistance * fCurDistance);
+            double fCurAcceleration = fCurForce;
+            double fWantedDeltaDistance = fCurDistance * 0.0001;
+            double fDeltaTime = sqrt(fWantedDeltaDistance * 2 / fCurAcceleration);
+            double fNextSpeed = fCurSpeed + fCurAcceleration * fDeltaTime;
+            double fAverageSpeed = (fNextSpeed + fCurSpeed) / 2;
+            double fDeltaDistance = fAverageSpeed * fDeltaTime;
+            double fNextDistance = fCurDistance - fDeltaDistance;
+            nvAssert(fNextDistance < fCurDistance);
+            double fNextPotentialEnergy = chargePotentialEnergySI(1., 1., fNextDistance);
+            double fNextKineticEnergy = fNextSpeed * fNextSpeed / 2;
+            double fNextTotalEnergy = fNextPotentialEnergy + fNextKineticEnergy;
+
+            fDisparity = ((fNextTotalEnergy - fInitialPotentialEnergy) / (fNextTotalEnergy + fInitialPotentialEnergy));
+            s_bTested = (s_bTested && fDisparity < 0.01);
+            nvAssert(s_bTested);
+
+            fCurDistance = fNextDistance;
+            fCurSpeed = fNextSpeed;
+        }
+        fDisparity = fDisparity;
+    }
+    // now compute in my units
+    {
+        MyUnits<T> fInitialDistance = MyUnits<T>::angstrom();
+        MyUnits<T> fCurDistance = fInitialDistance;
+        MyUnits<T> fInitialPotentialEnergy = chargePotentialEnergy(MyUnits<T>::electronCharge(), MyUnits<T>::electronCharge(), fCurDistance);
+        MyUnits<T> fCurSpeed;
+        while (fCurDistance * 2 > fInitialDistance)
+        {
+            MyUnits<T> fCurForce = coloumbLaw(MyUnits<T>::electronCharge(), MyUnits<T>::electronCharge(), fCurDistance, fCurDistance * fCurDistance);
+            MyUnits<T> fCurAcceleration = fCurForce / MyUnits<T>::electronMass();
+            MyUnits<T> fWantedDeltaDistance = fCurDistance * 0.0001;
+            MyUnits<T> fDeltaTime = sqrt(fWantedDeltaDistance * 2 / fCurAcceleration);
+            MyUnits<T> fNextSpeed = fCurSpeed + fCurAcceleration * fDeltaTime;
+            MyUnits<T> fAverageSpeed = (fNextSpeed + fCurSpeed) / 2;
+            MyUnits<T> fDeltaDistance = fAverageSpeed * fDeltaTime;
+            MyUnits<T> fNextDistance = fCurDistance - fDeltaDistance;
+            nvAssert(fNextDistance < fCurDistance);
+            MyUnits<T> fNextPotentialEnergy = chargePotentialEnergy(MyUnits<T>::electronCharge(), MyUnits<T>::electronCharge(), fNextDistance);
+            MyUnits<T> fNextKineticEnergy = MyUnits<T>::electronMass() * fNextSpeed * fNextSpeed / 2;
+            MyUnits<T> fNextTotalEnergy = fNextPotentialEnergy + fNextKineticEnergy;
+
+            fDisparity = ((fNextTotalEnergy - fInitialPotentialEnergy) / (fNextTotalEnergy + fInitialPotentialEnergy)).m_value;
+            s_bTested = (s_bTested && fDisparity < 0.01);
+            nvAssert(s_bTested);
+
+            fCurDistance = fNextDistance;
+            fCurSpeed = fNextSpeed;
+        }
+        fDisparity = fDisparity;
     }
 }
 bool MyUnitsTest::s_bTested = false;
