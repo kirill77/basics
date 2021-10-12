@@ -23,5 +23,8 @@
     <ClInclude Include="myunits.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="gradientDescent.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>

@@ -38,24 +38,26 @@ bool operator < (T s) const { return this->m_value < s; } \
 bool operator > (X s) const { return this->m_value > s.m_value; } \
 bool operator > (T s) const { return this->m_value > s; }
 
-static constexpr double COLOUMB_CONSTANT = 8.987551792314e9;
-static constexpr double ELECTRON_CHARGE = 1.602176634e-19;
-#define DALTON_DEC(X) 1.660539066605##X
-#define DALTON DALTON_DEC(e-27)
-#define AVOGADRO 6.02214076e23
+static constexpr double COLOUMB_CONSTANT = 8.987551792314e9; // kg * m^3 / C / s^2
+static constexpr double ELECTRON_CHARGE = 1.602176634e-19; // C
+static constexpr double DALTON = 1.660539066605e-27;
+static constexpr double AVOGADRO = 6.02214076e23;
+static constexpr double PLANCK_CONSTANT = 6.626070041e-34; // m^2 * kg / s
 
 // those constants define base units used at atomic scales
-static constexpr double TO_GRAMMS = 1e-17;
 static constexpr double TO_KILOGRAMS = 1e-20;
 static constexpr double TO_METERS = 1e-8;
-static constexpr double TO_COLOUMBS = ELECTRON_CHARGE;
+static constexpr double TO_COLOUMB = ELECTRON_CHARGE;
 constexpr double TO_SECONDS = 1e-9;
 constexpr double TO_NANOSECONDS = TO_SECONDS * 1e9;
 constexpr double TO_FEMTOSECONDS = TO_SECONDS * 1e15;
+
 constexpr double oaue1 = TO_NANOSECONDS / TO_SECONDS;
 static_assert(oaue1 > 0.999999999e9 && oaue1 < 1.00000001e9, "Contradictory time defines");
 constexpr double oaue2 = TO_FEMTOSECONDS / TO_SECONDS;
 static_assert(oaue2 > 0.99999999e15 && oaue2 < 1.0000001e15, "Contradictory time defines");
+
+static constexpr double MY_PLANCK_CONSTANT = PLANCK_CONSTANT / TO_METERS / TO_METERS / TO_KILOGRAMS * TO_SECONDS;
 
 template <class _T>
 struct MyUnits
@@ -77,7 +79,7 @@ struct MyUnits
     static MyUnits<T> nanoMeter() { return MyUnits<T>((T)(1e-9 / TO_METERS)); }
     static MyUnits<T> angstrom() { return MyUnits<T>((T)(1e-10 / TO_METERS)); }
     static MyUnits<T> picometer() { return MyUnits<T>((T)(1e-12 / TO_METERS)); }
-    static MyUnits<T> electronCharge() { return MyUnits<T>((T)(ELECTRON_CHARGE / TO_COLOUMBS)); }
+    static MyUnits<T> electronCharge() { return MyUnits<T>((T)(ELECTRON_CHARGE / TO_COLOUMB)); }
     static MyUnits<T> dalton() { return MyUnits<T>((T)(DALTON / TO_KILOGRAMS)); }
     static MyUnits<T> electronMass() { return MyUnits<T>((T)(9.1093837015e-31 / TO_KILOGRAMS)); }
     static MyUnits<T> gram() { return MyUnits<T>((T)(1e-3 / TO_KILOGRAMS)); }
@@ -95,7 +97,7 @@ struct MyUnits
     T toMeters() { return (T)(this->m_value * TO_METERS); }
     T toAngstroms() { return (T)(this->m_value * (TO_METERS * 1e10)); }
     T toSeconds() { return (T)this->m_value * TO_SECONDS; }
-    T toColoumbs() { return (T)(this->m_value * TO_COLOUMBS); }
+    T toColoumbs() { return (T)(this->m_value * TO_COLOUMB); }
 
     //*** derived units
     T toNewtons() const { return (T)(this->m_value * (TO_KILOGRAMS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
@@ -133,7 +135,7 @@ template <class T>
 MyUnits<T> coloumbLaw(MyUnits<T> fCharge1, MyUnits<T> fCharge2, MyUnits<T> fDist, MyUnits<T> fDistSQR)
 {
     nvAssert(MyUnitsTest::wasTested());
-    return fCharge1 * fCharge2 / fDistSQR * ((TO_COLOUMBS / (TO_METERS * TO_METERS * TO_METERS)) * (COLOUMB_CONSTANT * TO_SECONDS) * TO_SECONDS * (TO_COLOUMBS / TO_KILOGRAMS));
+    return fCharge1 * fCharge2 / fDistSQR * ((TO_COLOUMB / (TO_METERS * TO_METERS * TO_METERS)) * (COLOUMB_CONSTANT * TO_SECONDS) * TO_SECONDS * (TO_COLOUMB / TO_KILOGRAMS));
 }
 
 template <class T>
@@ -168,7 +170,7 @@ template <class T>
 MyUnits<T> chargePotentialEnergy(MyUnits<T> fCharge1, MyUnits<T> fCharge2, MyUnits<T> fDist)
 {
     nvAssert(MyUnitsTest::wasTested());
-    return -fCharge1 * fCharge2 / fDist * ((TO_COLOUMBS / (TO_METERS * TO_METERS * TO_METERS)) * (COLOUMB_CONSTANT * TO_SECONDS) * TO_SECONDS * (TO_COLOUMBS / TO_KILOGRAMS));
+    return -fCharge1 * fCharge2 / fDist * ((TO_COLOUMB / (TO_METERS * TO_METERS * TO_METERS)) * (COLOUMB_CONSTANT * TO_SECONDS) * TO_SECONDS * (TO_COLOUMB / TO_KILOGRAMS));
 }
 
 template <class T1, class T2>
