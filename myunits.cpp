@@ -237,7 +237,7 @@ bool MyUnitsTest::s_bTested = false;
 
 std::unordered_map<ATOM_KEY, BondsDataBase<double>::ABond> BondsDataBase<double>::m_aBonds;
 std::unordered_map<NvU32, BondsDataBase<double>::Atom> BondsDataBase<double>::m_atoms;
-MyUnits<double> BondsDataBase<double>::s_zeroForceDist = MyUnits<double>::nanoMeter() * 2;
+MyUnits<double> BondsDataBase<double>::s_zeroForceDist = MyUnits<double>::angstrom() * 4;
 MyUnits<double> BondsDataBase<double>::s_zeroForceDistSqr = BondsDataBase<double>::s_zeroForceDist * BondsDataBase<double>::s_zeroForceDist;
 
 template <class T>
