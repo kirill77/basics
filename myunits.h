@@ -86,7 +86,7 @@ struct MyUnits
     static MyUnits<T> kJperMole() { return MyUnits<T>((T)(1e3 / AVOGADRO / TO_KILOGRAMS / TO_METERS / TO_METERS * TO_SECONDS * TO_SECONDS)); }
     static MyUnits<T> joule() { return MyUnits<T>((T)(1. / TO_KILOGRAMS / TO_METERS / TO_METERS * TO_SECONDS * TO_SECONDS)); }
     static MyUnits<T> evalTemperature(MyUnits<T> fAvgKinEnergy) { nvAssert(MyUnitsTest::wasTested()); return fAvgKinEnergy; }
-    static MyUnits<T> evalPressure(MyUnits<T> fTtlKinEnergy, MyUnits<T> fVolume, NvU32 nParticles) { nvAssert(MyUnitsTest::wasTested()); return fTtlKinEnergy / fVolume; }
+    static MyUnits<T> evalPressure(MyUnits<T> fAvgKinEnergy, MyUnits<T> fVolume, NvU32 nParticles) { nvAssert(MyUnitsTest::wasTested()); return fAvgKinEnergy * nParticles * (2./3) / fVolume; }
 
     // convertion between kinetic energy and temperature
     T toCelcius() const { return (T)(this->m_value * (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS) - 273.15); }
@@ -106,7 +106,7 @@ struct MyUnits
     T toMetersPerSecond2() const { return (T)(this->m_value * (TO_METERS / TO_SECONDS / TO_SECONDS)); }
     T toJoules() const { return (T)(this->m_value * (TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
     T toKJperMole() const { return (T)(this->m_value * (1e-3 * AVOGADRO * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toAtmospheres() const { return (T)this->m_value * 1e-10; }
+    T toAtmospheres() const { return (T)(this->m_value * (TO_KILOGRAMS / TO_SECONDS / TO_SECONDS / TO_METERS / 101325)); }
 };
 
 #undef UNIT_MEMBERS
