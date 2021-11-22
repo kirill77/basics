@@ -102,7 +102,7 @@ void MyUnitsTest::test()
                     bool bNonZero = eBond.lennardJones(ljOut.vForce, ljOut);
                     if (bNonZero)
                     {
-                        if (ljOut.vForce[uDim] * fPrevForce <= 0.)
+                        if (ljOut.vForce[uDim] * fPrevForce <= 0.) // we go until the force changes sign
                         {
                             MyUnits<double> bondLength = vPos[1][uDim];
                             double fPercentDifference = std::abs(bondLength.m_value - eBond.m_fLength.m_value) / eBond.m_fLength.m_value * 100;
