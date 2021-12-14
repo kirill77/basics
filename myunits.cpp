@@ -256,6 +256,7 @@ void BondsDataBase<T>::setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectron
 {
     auto& eBond = accessEBond(nProtons1, nProtons2, nElectrons);
     eBond.m_fLength = fBondLength;
+    eBond.m_fLengthSqr = sqr(eBond.m_fLength);
     eBond.m_fEnergy = fBondEnergy;
     // we need to compute sigma and epsilon to match fBondLength and fBondEnergy
     eBond.m_fSigma = fBondLength * pow(2, -1. / 6);

@@ -45,7 +45,7 @@ struct BondsDataBase
             out.vForce = vSrcToDstDir * (fForce / fRPow2);
             return true;
         }
-        MyUnits<T> m_fLength, m_fEnergy, m_fEpsilon, m_fSigma;
+        MyUnits<T> m_fLength, m_fLengthSqr, m_fEnergy, m_fEpsilon, m_fSigma;
     };
     // describes different bonds that may happen between particular types of atoms (for instance O-O and O=O would be in the same ABond, but O-H would be in different ABond)
     struct ABond
