@@ -11,33 +11,6 @@ private:
     static bool s_bTested;
 };
 
-#define UNIT_MEMBERS(X) \
-X() { m_value = 0; } \
-explicit X(T value) : m_value(value) { } \
-X operator -() const { return X(-MyUnits<T>::m_value); } \
-X operator *=(X s) { MyUnits<T>::m_value *= s.m_value; return *this; } \
-X operator *=(T s) { MyUnits<T>::m_value *= s; return *this; } \
-X operator -=(X s) { MyUnits<T>::m_value -= s.m_value; return *this; } \
-X operator /=(T s) { MyUnits<T>::m_value /= s; return *this; } \
-X sqrt() const { return X((T)::sqrt(this->m_value)); } \
-X operator -(X s) const { return X(this->m_value - s.m_value); } \
-X operator +(X s) const { return X(this->m_value + s.m_value); } \
-X operator /(X s) const { return X(this->m_value / s.m_value); } \
-X operator /(T s) const { return X(this->m_value / s); } \
-X operator *(X s) const { return X(this->m_value * s.m_value); } \
-X operator *(T s) const { return X(this->m_value * s); } \
-bool operator == (X s) const { return this->m_value == s.m_value; } \
-bool operator == (T s) const { return this->m_value == s; } \
-bool operator != (X s) const { return this->m_value != s.m_value; } \
-bool operator != (T s) const { return this->m_value != s; } \
-bool operator >= (X s) const { return this->m_value >= s.m_value; } \
-bool operator <= (X s) const { return this->m_value <= s.m_value; } \
-bool operator <= (T s) const { return this->m_value <= s; } \
-bool operator < (X s) const { return this->m_value < s.m_value; } \
-bool operator < (T s) const { return this->m_value < s; } \
-bool operator > (X s) const { return this->m_value > s.m_value; } \
-bool operator > (T s) const { return this->m_value > s; }
-
 static constexpr double COLOUMB_CONSTANT = 8.987551792314e9; // kg * m^3 / C / s^2
 static constexpr double ELECTRON_CHARGE = 1.602176634e-19; // C
 static constexpr double DALTON = 1.660539066605e-27;
@@ -65,7 +38,33 @@ struct MyUnits
     typedef _T T;
     T m_value;
 
-    UNIT_MEMBERS(MyUnits);
+    MyUnits() { m_value = 0; }
+    explicit MyUnits(T value) : m_value(value) { }
+    MyUnits<_T> operator -() const { return MyUnits<_T>(-MyUnits<T>::m_value); }
+    MyUnits<_T> operator *=(MyUnits<_T> s) { MyUnits<T>::m_value *= s.m_value; return *this; }
+    MyUnits<_T> operator *=(T s) { MyUnits<T>::m_value *= s; return *this; }
+    MyUnits<_T> operator -=(MyUnits<_T> s) { MyUnits<T>::m_value -= s.m_value; return *this; }
+    MyUnits<_T> operator /=(T s) { MyUnits<T>::m_value /= s; return *this; }
+    MyUnits<_T> sqrt() const { return MyUnits<_T>((T)::sqrt(this->m_value)); }
+    MyUnits<_T> operator -(MyUnits<_T> s) const { return MyUnits<_T>(this->m_value - s.m_value); }
+    MyUnits<_T> operator +(MyUnits<_T> s) const { return MyUnits<_T>(this->m_value + s.m_value); }
+    MyUnits<_T> operator /(MyUnits<_T> s) const { return MyUnits<_T>(this->m_value / s.m_value); }
+    MyUnits<_T> operator /=(MyUnits<_T> s) { return MyUnits<_T>(this->m_value /= s.m_value); }
+    MyUnits<_T> operator /(T s) const { return MyUnits<_T>(this->m_value / s); }
+    MyUnits<_T> operator *(MyUnits<_T> s) const { return MyUnits<_T>(this->m_value * s.m_value); }
+    MyUnits<_T> operator *(T s) const { return MyUnits<_T>(this->m_value * s); }
+    bool operator == (MyUnits<_T> s) const { return this->m_value == s.m_value; }
+    bool operator == (T s) const { return this->m_value == s; }
+    bool operator != (MyUnits<_T> s) const { return this->m_value != s.m_value; }
+    bool operator != (T s) const { return this->m_value != s; }
+    bool operator >= (MyUnits<_T> s) const { return this->m_value >= s.m_value; }
+    bool operator <= (MyUnits<_T> s) const { return this->m_value <= s.m_value; }
+    bool operator <= (T s) const { return this->m_value <= s; }
+    bool operator < (MyUnits<_T> s) const { return this->m_value < s.m_value; }
+    bool operator < (T s) const { return this->m_value < s; }
+    bool operator > (MyUnits<_T> s) const { return this->m_value > s.m_value; }
+    bool operator > (T s) const { return this->m_value > s; }
+
     template <class T1> MyUnits<T> operator +=(MyUnits<T1> s) { m_value += (T)s.m_value; return *this; }
     void clear() { m_value = 0; }
 
@@ -108,8 +107,6 @@ struct MyUnits
     T toKJperMole() const { return (T)(this->m_value * (1e-3 * AVOGADRO * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
     T toAtmospheres() const { return (T)(this->m_value * (TO_KILOGRAMS / TO_SECONDS / TO_SECONDS / TO_METERS / 101325)); }
 };
-
-#undef UNIT_MEMBERS
 
 namespace std
 {
