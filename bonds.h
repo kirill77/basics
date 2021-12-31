@@ -24,8 +24,7 @@ struct BondsDataBase
     struct LJ_Out
     {
         rtvector<MyUnits<T>, 3> vForce;
-        MyUnits<T> fDistSqr;
-        MyUnits<T> fPotential;
+        MyUnits<T> fDistSqr, fPotential, fForceTimesR;
     };
     struct EBond
     {
@@ -40,9 +39,9 @@ struct BondsDataBase
             MyUnits<T> fPow6 = fPow2 * fPow2 * fPow2;
             MyUnits<T> fPow12 = fPow6 * fPow6;
             out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
-            MyUnits<T> fForce = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
-            nvAssert(!isnan(fForce.m_value));
-            out.vForce = vSrcToDstDir * (fForce / fRPow2);
+            out.fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
+            nvAssert(!isnan(out.fForceTimesR.m_value));
+            out.vForce = vSrcToDstDir * (out.fForceTimesR / fRPow2);
             return true;
         }
         MyUnits<T> m_fLength, m_fLengthSqr, m_fEnergy, m_fEpsilon, m_fSigma;
