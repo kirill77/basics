@@ -108,7 +108,7 @@ void MyUnitsTest::test()
                             double fPercentDifference = std::abs(bondLength.m_value - eBond.m_fLength.m_value) / eBond.m_fLength.m_value * 100;
                             s_bTested = s_bTested && fPercentDifference < 1;
                             nvAssert(s_bTested);
-                            fEnergy.clear();
+                            fEnergy = MyUnits<double>();
                             fPotential = ljOut.fPotential;
                         }
                         else
@@ -119,7 +119,7 @@ void MyUnitsTest::test()
                     }
                     else
                     {
-                        fPrevForce.clear();
+                        fPrevForce = MyUnits<double>();
                     }
                 }
                 fEnergy *= deltaX;

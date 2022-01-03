@@ -40,33 +40,31 @@ struct MyUnits
 
     MyUnits() { m_value = 0; }
     explicit MyUnits(T value) : m_value(value) { }
-    MyUnits<_T> operator -() const { return MyUnits<_T>(-MyUnits<T>::m_value); }
-    MyUnits<_T> operator *=(MyUnits<_T> s) { MyUnits<T>::m_value *= s.m_value; return *this; }
-    MyUnits<_T> operator *=(T s) { MyUnits<T>::m_value *= s; return *this; }
-    MyUnits<_T> operator -=(MyUnits<_T> s) { MyUnits<T>::m_value -= s.m_value; return *this; }
-    MyUnits<_T> operator /=(T s) { MyUnits<T>::m_value /= s; return *this; }
-    MyUnits<_T> sqrt() const { return MyUnits<_T>((T)::sqrt(this->m_value)); }
-    MyUnits<_T> operator -(MyUnits<_T> s) const { return MyUnits<_T>(this->m_value - s.m_value); }
-    MyUnits<_T> operator +(MyUnits<_T> s) const { return MyUnits<_T>(this->m_value + s.m_value); }
-    MyUnits<_T> operator /(MyUnits<_T> s) const { return MyUnits<_T>(this->m_value / s.m_value); }
-    MyUnits<_T> operator /=(MyUnits<_T> s) { return MyUnits<_T>(this->m_value /= s.m_value); }
-    MyUnits<_T> operator /(T s) const { return MyUnits<_T>(this->m_value / s); }
-    MyUnits<_T> operator *(MyUnits<_T> s) const { return MyUnits<_T>(this->m_value * s.m_value); }
-    MyUnits<_T> operator *(T s) const { return MyUnits<_T>(this->m_value * s); }
-    bool operator == (MyUnits<_T> s) const { return this->m_value == s.m_value; }
-    bool operator == (T s) const { return this->m_value == s; }
-    bool operator != (MyUnits<_T> s) const { return this->m_value != s.m_value; }
-    bool operator != (T s) const { return this->m_value != s; }
-    bool operator >= (MyUnits<_T> s) const { return this->m_value >= s.m_value; }
-    bool operator <= (MyUnits<_T> s) const { return this->m_value <= s.m_value; }
-    bool operator <= (T s) const { return this->m_value <= s; }
-    bool operator < (MyUnits<_T> s) const { return this->m_value < s.m_value; }
-    bool operator < (T s) const { return this->m_value < s; }
-    bool operator > (MyUnits<_T> s) const { return this->m_value > s.m_value; }
-    bool operator > (T s) const { return this->m_value > s; }
+    MyUnits<_T> operator -() const { return MyUnits<_T>(-m_value); }
+    MyUnits<_T> operator *=(MyUnits<_T> s) { m_value *= s.m_value; return *this; }
+    MyUnits<_T> operator *=(T s) { m_value *= s; return *this; }
+    MyUnits<_T> operator -=(MyUnits<_T> s) { m_value -= s.m_value; return *this; }
+    MyUnits<_T> operator /=(T s) { m_value /= s; return *this; }
+    MyUnits<_T> operator -(MyUnits<_T> s) const { return MyUnits<_T>(m_value - s.m_value); }
+    MyUnits<_T> operator +(MyUnits<_T> s) const { return MyUnits<_T>(m_value + s.m_value); }
+    MyUnits<_T> operator /(MyUnits<_T> s) const { return MyUnits<_T>(m_value / s.m_value); }
+    MyUnits<_T> operator /=(MyUnits<_T> s) { return MyUnits<_T>(m_value /= s.m_value); }
+    MyUnits<_T> operator /(T s) const { return MyUnits<_T>(m_value / s); }
+    MyUnits<_T> operator *(MyUnits<_T> s) const { return MyUnits<_T>(m_value * s.m_value); }
+    MyUnits<_T> operator *(T s) const { return MyUnits<_T>(m_value * s); }
+    bool operator == (MyUnits<_T> s) const { return m_value == s.m_value; }
+    bool operator == (T s) const { return m_value == s; }
+    bool operator != (MyUnits<_T> s) const { return m_value != s.m_value; }
+    bool operator != (T s) const { return m_value != s; }
+    bool operator >= (MyUnits<_T> s) const { return m_value >= s.m_value; }
+    bool operator <= (MyUnits<_T> s) const { return m_value <= s.m_value; }
+    bool operator <= (T s) const { return m_value <= s; }
+    bool operator < (MyUnits<_T> s) const { return m_value < s.m_value; }
+    bool operator < (T s) const { return m_value < s; }
+    bool operator > (MyUnits<_T> s) const { return m_value > s.m_value; }
+    bool operator > (T s) const { return m_value > s; }
 
     template <class T1> MyUnits<T> operator +=(MyUnits<T1> s) { m_value += (T)s.m_value; return *this; }
-    void clear() { m_value = 0; }
 
     //*** constructors
     static MyUnits<T> second() { return MyUnits<T>((T)(1. / TO_SECONDS)); }
@@ -88,24 +86,24 @@ struct MyUnits
     static MyUnits<T> evalPressure(MyUnits<T> fTtlKinEnergy, MyUnits<T> fVolume, NvU32 nParticles) { nvAssert(MyUnitsTest::wasTested()); return fTtlKinEnergy * (2./3) / fVolume; }
 
     // convertion between kinetic energy and temperature
-    T toCelcius() const { return (T)(this->m_value * (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS) - 273.15); }
+    T toCelcius() const { return (T)(m_value * (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS) - 273.15); }
     static MyUnits<T> fromCelcius(T fValue) { return MyUnits<T>((fValue + 273.15) / (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
 
     //*** base units
-    T toKilograms() { return (T)(this->m_value * TO_KILOGRAMS); }
-    T toMeters() { return (T)(this->m_value * TO_METERS); }
-    T toAngstroms() { return (T)(this->m_value * (TO_METERS * 1e10)); }
-    T toSeconds() { return (T)this->m_value * TO_SECONDS; }
-    T toColoumbs() { return (T)(this->m_value * TO_COLOUMB); }
+    T toKilograms() { return (T)(m_value * TO_KILOGRAMS); }
+    T toMeters() { return (T)(m_value * TO_METERS); }
+    T toAngstroms() { return (T)(m_value * (TO_METERS * 1e10)); }
+    T toSeconds() { return (T)m_value * TO_SECONDS; }
+    T toColoumbs() { return (T)(m_value * TO_COLOUMB); }
 
     //*** derived units
-    T toNewtons() const { return (T)(this->m_value * (TO_KILOGRAMS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toNanoseconds() const { return (T)(this->m_value * TO_NANOSECONDS); }
-    T toFemtoseconds() const { return (T)(this->m_value * TO_FEMTOSECONDS); }
-    T toMetersPerSecond2() const { return (T)(this->m_value * (TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toJoules() const { return (T)(this->m_value * (TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toKJperMole() const { return (T)(this->m_value * (1e-3 * AVOGADRO * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toAtmospheres() const { return (T)(this->m_value * (TO_KILOGRAMS / TO_SECONDS / TO_SECONDS / TO_METERS / 101325)); }
+    T toNewtons() const { return (T)(m_value * (TO_KILOGRAMS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    T toNanoseconds() const { return (T)(m_value * TO_NANOSECONDS); }
+    T toFemtoseconds() const { return (T)(m_value * TO_FEMTOSECONDS); }
+    T toMetersPerSecond2() const { return (T)(m_value * (TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    T toJoules() const { return (T)(m_value * (TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    T toKJperMole() const { return (T)(m_value * (1e-3 * AVOGADRO * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    T toAtmospheres() const { return (T)(m_value * (TO_KILOGRAMS / TO_SECONDS / TO_SECONDS / TO_METERS / 101325)); }
 };
 
 namespace std

@@ -24,24 +24,23 @@ struct BondsDataBase
     struct LJ_Out
     {
         rtvector<MyUnits<T>, 3> vForce;
-        MyUnits<T> fDistSqr, fPotential, fForceTimesR;
+        MyUnits<T> fDistSqr, fPotential;
     };
     struct EBond
     {
         bool lennardJones(const rtvector<MyUnits<T>, 3>& vSrcToDstDir, LJ_Out &out) const
         {
             nvAssert(m_fEpsilon > 0 && m_fSigma > 0);
-            MyUnits<T> fRPow2 = lengthSquared(vSrcToDstDir);
-            if (fRPow2 >= s_zeroForceDistSqr)
+            out.fDistSqr = lengthSquared(vSrcToDstDir);
+            if (out.fDistSqr >= s_zeroForceDistSqr)
                 return false;
-            out.fDistSqr = fRPow2;
-            MyUnits<T> fPow2 = m_fSigma * m_fSigma / fRPow2;
+            MyUnits<T> fPow2 = m_fSigma * m_fSigma / out.fDistSqr;
             MyUnits<T> fPow6 = fPow2 * fPow2 * fPow2;
             MyUnits<T> fPow12 = fPow6 * fPow6;
             out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
-            out.fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
-            nvAssert(!isnan(out.fForceTimesR.m_value));
-            out.vForce = vSrcToDstDir * (out.fForceTimesR / fRPow2);
+            auto fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
+            nvAssert(!isnan(fForceTimesR.m_value));
+            out.vForce = vSrcToDstDir * (fForceTimesR / out.fDistSqr);
             return true;
         }
         MyUnits<T> m_fLength, m_fLengthSqr, m_fEnergy, m_fEpsilon, m_fSigma;
