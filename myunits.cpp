@@ -243,8 +243,8 @@ MyUnits<double> BondsDataBase<double>::s_zeroForceDistSqr = BondsDataBase<double
 template <class T>
 void BondsDataBase<T>::init()
 {
-    setAtom(NPROTONS_O, MyUnits<T>::dalton() * 15.999, MyUnits<T>::picometer() * 152, 3.44);
-    setAtom(NPROTONS_H, MyUnits<T>::dalton() * 1.008, MyUnits<T>::picometer() * 120, 2.2);
+    setAtom(NPROTONS_O, MyUnits<T>::dalton() * 15.999, MyUnits<T>::picometer() * 152, 3.44, 2 /*valence*/);
+    setAtom(NPROTONS_H, MyUnits<T>::dalton() * 1.008, MyUnits<T>::picometer() * 120, 2.2, 1 /*valence*/);
 
     setBond(NPROTONS_O, NPROTONS_O, 1, MyUnits<T>::angstrom() * 1.278, MyUnits<T>::kJperMole() * 140);
     setBond(NPROTONS_O, NPROTONS_O, 2, MyUnits<T>::angstrom() * 1.2, MyUnits<T>::kJperMole() * 498);
@@ -257,6 +257,7 @@ void BondsDataBase<T>::setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectron
     auto& eBond = accessEBond(nProtons1, nProtons2, nElectrons);
     eBond.m_fLength = fBondLength;
     eBond.m_fLengthSqr = sqr(eBond.m_fLength);
+    eBond.m_fDissocLengthSqr = sqr(fBondLength * 2); // TODO: this is ad-hoc - figure out better way
     eBond.m_fEnergy = fBondEnergy;
     // we need to compute sigma and epsilon to match fBondLength and fBondEnergy
     eBond.m_fSigma = fBondLength * pow(2, -1. / 6);
@@ -264,10 +265,11 @@ void BondsDataBase<T>::setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectron
     accessEBond(nProtons2, nProtons1, nElectrons) = eBond;
 }
 template <class T>
-void BondsDataBase<T>::setAtom(NvU32 nProtons, MyUnits<T> fMass, MyUnits<T> fRadius, T fElectroNegativity)
+void BondsDataBase<T>::setAtom(NvU32 nProtons, MyUnits<T> fMass, MyUnits<T> fRadius, T fElectroNegativity, NvU32 uValence)
 {
     auto& atom = m_atoms[nProtons];
     atom.m_fMass = fMass;
     atom.m_fRadius = fRadius;
     atom.m_fElectroNegativity = fElectroNegativity;
+    atom.m_uValence = uValence;
 }

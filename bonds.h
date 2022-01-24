@@ -43,7 +43,7 @@ struct BondsDataBase
             out.vForce = vSrcToDstDir * (fForceTimesR / out.fDistSqr);
             return true;
         }
-        MyUnits<T> m_fLength, m_fLengthSqr, m_fEnergy, m_fEpsilon, m_fSigma;
+        MyUnits<T> m_fLength, m_fLengthSqr, m_fDissocLengthSqr, m_fEnergy, m_fEpsilon, m_fSigma;
     };
     // describes different bonds that may happen between particular types of atoms (for instance O-O and O=O would be in the same ABond, but O-H would be in different ABond)
     struct ABond
@@ -62,6 +62,7 @@ struct BondsDataBase
     {
         MyUnits<double> m_fMass, m_fRadius;
         T m_fElectroNegativity = 0;
+        NvU32 m_uValence = -1;
     };
     static const Atom& getAtom(NvU32 nProtons)
     {
@@ -77,7 +78,7 @@ private:
         return m_aBonds[key][nElectrons];
     }
     static void setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons, MyUnits<T> fBondLength, MyUnits<T> fBondEnergy);
-    static void setAtom(NvU32 nProtons, MyUnits<T> fMass, MyUnits<T> fRadius, T fElectroNegativity);
+    static void setAtom(NvU32 nProtons, MyUnits<T> fMass, MyUnits<T> fRadius, T fElectroNegativity, NvU32 uValence);
     static std::unordered_map<ATOM_KEY, ABond> m_aBonds;
     static std::unordered_map<NvU32, Atom> m_atoms;
 };
