@@ -80,12 +80,6 @@ typedef NvU32 ATOM_KEY;
 template <class T>
 struct BondsDataBase
 {
-    static inline ATOM_KEY computeAtomDatasKey(NvU32 nProtons1, NvU32 nProtons2)
-    {
-        nvAssert(nProtons1 <= NPROTONS_MAX && nProtons2 <= NPROTONS_MAX);
-        return nProtons1 * NPROTONS_MAX + nProtons2;
-    }
-
     static MyUnits<T> s_zeroForceDist, s_zeroForceDistSqr;
 
     // bond length and energy, and corresponding lennard-jones parameters
@@ -140,6 +134,11 @@ struct BondsDataBase
     }
 
 private:
+    static inline ATOM_KEY computeAtomDatasKey(NvU32 nProtons1, NvU32 nProtons2)
+    {
+        nvAssert(nProtons1 <= NPROTONS_MAX && nProtons2 <= NPROTONS_MAX);
+        return nProtons1 * NPROTONS_MAX + nProtons2;
+    }
     static inline EBond& accessEBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons)
     {
         NvU32 key = computeAtomDatasKey(nProtons1, nProtons2);
