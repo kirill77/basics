@@ -1,7 +1,75 @@
 #pragma once
 
+// The goal of those objects is to compute interaction between 2 atoms. we consider several kinds of forces:
+// 1. Covalent bond. Covalent bond forms between two adjacent atoms when they both have free valence electrons.
+//    1.1 It is modeled by lennard-jones potential;
+//    1.2 It may store some of the atoms kinetic energy - so the atoms stick together instead of executing an elastic collision;
+//    1.3 May change atom fractional charge - that way atoms may start experiencing Coloumb force with other atoms;
+// 2. Coloumb force. Atoms are assigned this force if they are not covalently bonded and charge1*charge2 != 0.
+// 3. Van-der-Waals force. Atoms are assigned this force if they are not covalently bonded and charge1*charge2 == 0.
+// 4. Bond angle force. This force is acting on 3 covalently-bound atoms and is trying to support angles between them that are known
+//    from experiments.
+
 #include "myunits.h"
 #include <unordered_map>
+
+// force acting between two atoms (when we have force acting between 3 atoms we'll call it Force3)
+struct ForceKey
+{
+    ForceKey(NvU32 uAtom1, NvU32 uAtom2)
+    {
+        if (uAtom1 < uAtom2) // sort indices to avoid duplicate forces 1<->2 and 2<->1
+        {
+            m_uAtom1 = uAtom1;
+            m_uAtom2 = uAtom2;
+            nvAssert(m_uAtom1 == uAtom1 && m_uAtom2 == uAtom2 && m_uAtom1 != m_uAtom2);
+            return;
+        }
+        m_uAtom1 = uAtom2;
+        m_uAtom2 = uAtom1;
+        nvAssert(m_uAtom1 == uAtom2 && m_uAtom2 == uAtom1 && m_uAtom1 != m_uAtom2);
+    }
+    bool operator ==(const ForceKey& other) const { return m_uAtom1 == other.m_uAtom1 && m_uAtom2 == other.m_uAtom2; }
+    NvU32 getAtom1Index() const { return m_uAtom1; }
+    NvU32 getAtom2Index() const { return m_uAtom2; }
+private:
+    NvU32 m_uAtom1 : 16;
+    NvU32 m_uAtom2 : 16;
+};
+// custom specialization of std::hash can be injected in namespace std
+template<>
+struct std::hash<ForceKey>
+{
+    std::size_t operator()(ForceKey const& s) const noexcept
+    {
+        static_assert(sizeof(s) == sizeof(NvU32), "error: wrong ForceKey size");
+        return std::hash<NvU32>{}((NvU32&)s);
+    }
+};
+template <class T>
+struct Force
+{
+    Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
+
+    bool hadCollision() const { return m_collisionDetected; }
+    bool isCovalentBond() const { return m_isCovalentBond; }
+
+    void notifyCollision() { m_collisionDetected = 1; }
+    void dropCovalentBond() { nvAssert(m_isCovalentBond == 1); m_isCovalentBond = 0; }
+    void setCovalentBond() { nvAssert(m_isCovalentBond == 0); m_isCovalentBond = 1; }
+
+    inline bool operator <(const Force& other) const
+    {
+        return m_fPotential[1] - m_fPotential[0] < other.m_fPotential[1] - other.m_fPotential[0];
+    }
+
+    MyUnits<T> m_fPotential[2]; // potentials corresponding prev and next state of the system
+    MyUnits<T> m_fDistSqr[2]; // distances between atoms corresponding to prev and next state of the system
+
+private:
+    NvU32 m_collisionDetected : 1; // collision detected during time step
+    NvU32 m_isCovalentBond : 1;
+};
 
 const NvU32 NPROTONS_MAX = 32;
 const NvU32 NPROTONS_O = 8;
