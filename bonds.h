@@ -13,64 +13,6 @@
 #include "myunits.h"
 #include <unordered_map>
 
-// force acting between two atoms (when we have force acting between 3 atoms we'll call it Force3)
-struct ForceKey
-{
-    ForceKey(NvU32 uAtom1, NvU32 uAtom2)
-    {
-        if (uAtom1 < uAtom2) // sort indices to avoid duplicate forces 1<->2 and 2<->1
-        {
-            m_uAtom1 = uAtom1;
-            m_uAtom2 = uAtom2;
-            nvAssert(m_uAtom1 == uAtom1 && m_uAtom2 == uAtom2 && m_uAtom1 != m_uAtom2);
-            return;
-        }
-        m_uAtom1 = uAtom2;
-        m_uAtom2 = uAtom1;
-        nvAssert(m_uAtom1 == uAtom2 && m_uAtom2 == uAtom1 && m_uAtom1 != m_uAtom2);
-    }
-    bool operator ==(const ForceKey& other) const { return m_uAtom1 == other.m_uAtom1 && m_uAtom2 == other.m_uAtom2; }
-    NvU32 getAtom1Index() const { return m_uAtom1; }
-    NvU32 getAtom2Index() const { return m_uAtom2; }
-private:
-    NvU32 m_uAtom1 : 16;
-    NvU32 m_uAtom2 : 16;
-};
-// custom specialization of std::hash can be injected in namespace std
-template<>
-struct std::hash<ForceKey>
-{
-    std::size_t operator()(ForceKey const& s) const noexcept
-    {
-        static_assert(sizeof(s) == sizeof(NvU32), "error: wrong ForceKey size");
-        return std::hash<NvU32>{}((NvU32&)s);
-    }
-};
-template <class T>
-struct Force
-{
-    Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
-
-    bool hadCollision() const { return m_collisionDetected; }
-    bool isCovalentBond() const { return m_isCovalentBond; }
-
-    void notifyCollision() { m_collisionDetected = 1; }
-    void dropCovalentBond() { nvAssert(m_isCovalentBond == 1); m_isCovalentBond = 0; }
-    void setCovalentBond() { nvAssert(m_isCovalentBond == 0); m_isCovalentBond = 1; }
-
-    inline bool operator <(const Force& other) const
-    {
-        return m_fPotential[1] - m_fPotential[0] < other.m_fPotential[1] - other.m_fPotential[0];
-    }
-
-    MyUnits<T> m_fPotential[2]; // potentials corresponding prev and next state of the system
-    MyUnits<T> m_fDistSqr[2]; // distances between atoms corresponding to prev and next state of the system
-
-private:
-    NvU32 m_collisionDetected : 1; // collision detected during time step
-    NvU32 m_isCovalentBond : 1;
-};
-
 const NvU32 NPROTONS_MAX = 32;
 const NvU32 NPROTONS_O = 8;
 const NvU32 NPROTONS_H = 1;
@@ -148,4 +90,72 @@ private:
     static void setAtom(NvU32 nProtons, MyUnits<T> fMass, MyUnits<T> fRadius, T fElectroNegativity, NvU32 uValence);
     static std::unordered_map<ATOM_KEY, ABond> m_aBonds;
     static std::unordered_map<NvU32, Atom> m_atoms;
+};
+
+// force acting between two atoms (when we have force acting between 3 atoms we'll call it Force3)
+struct ForceKey
+{
+    ForceKey(NvU32 uAtom1, NvU32 uAtom2)
+    {
+        if (uAtom1 < uAtom2) // sort indices to avoid duplicate forces 1<->2 and 2<->1
+        {
+            m_uAtom1 = uAtom1;
+            m_uAtom2 = uAtom2;
+            nvAssert(m_uAtom1 == uAtom1 && m_uAtom2 == uAtom2 && m_uAtom1 != m_uAtom2);
+            return;
+        }
+        m_uAtom1 = uAtom2;
+        m_uAtom2 = uAtom1;
+        nvAssert(m_uAtom1 == uAtom2 && m_uAtom2 == uAtom1 && m_uAtom1 != m_uAtom2);
+    }
+    bool operator ==(const ForceKey& other) const { return m_uAtom1 == other.m_uAtom1 && m_uAtom2 == other.m_uAtom2; }
+    NvU32 getAtom1Index() const { return m_uAtom1; }
+    NvU32 getAtom2Index() const { return m_uAtom2; }
+private:
+    NvU32 m_uAtom1 : 16;
+    NvU32 m_uAtom2 : 16;
+};
+// custom specialization of std::hash can be injected in namespace std
+template<>
+struct std::hash<ForceKey>
+{
+    std::size_t operator()(ForceKey const& s) const noexcept
+    {
+        static_assert(sizeof(s) == sizeof(NvU32), "error: wrong ForceKey size");
+        return std::hash<NvU32>{}((NvU32&)s);
+    }
+};
+template <class T>
+struct Force
+{
+    Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
+
+    bool hadCollision() const { return m_collisionDetected; }
+    bool isCovalentBond() const { return m_isCovalentBond; }
+
+    void notifyCollision() { m_collisionDetected = 1; }
+    void dropCovalentBond() { nvAssert(m_isCovalentBond == 1); m_isCovalentBond = 0; }
+    void setCovalentBond() { nvAssert(m_isCovalentBond == 0); m_isCovalentBond = 1; }
+
+    MyUnits<T> m_fPotential[2]; // potentials corresponding prev and next state of the system
+    MyUnits<T> m_fDistSqr[2]; // distances between atoms corresponding to prev and next state of the system
+
+    template <NvU32 index>
+    bool computeForce(NvU32 nProtons1, NvU32 nProtons2, rtvector<MyUnits<T>, 3> vInR, rtvector<MyUnits<T>, 3>& vOutForce)
+    {
+        typename BondsDataBase<T>::LJ_Out out;
+        auto& eBond = BondsDataBase<T>::getEBond(nProtons1, nProtons2, 1);
+        bool hasForce = eBond.lennardJones(vInR, out);
+        m_fDistSqr[index] = out.fDistSqr; // this is needed even if force is 0
+        if (hasForce)
+        {
+            vOutForce = out.vForce;
+            m_fPotential[index] = out.fPotential;
+        }
+        return hasForce;
+    }
+
+private:
+    NvU32 m_collisionDetected : 1; // collision detected during time step
+    NvU32 m_isCovalentBond : 1;
 };
