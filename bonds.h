@@ -95,7 +95,7 @@ private:
 template <class T>
 struct Atom
 {
-    Atom(NvU32 nProtons = 1) : m_nBondedAtoms(0), m_nProtons(nProtons), m_uValence(BondsDataBase<T>::getElement(m_nProtons).m_uValence)
+    explicit Atom(NvU32 nProtons = 1) : m_nBondedAtoms(0), m_nProtons(nProtons), m_uValence(BondsDataBase<T>::getElement(m_nProtons).m_uValence)
     {
         for (NvU32 u = 0; u < m_bondedAtoms.size(); ++u) m_bondedAtoms[u] = -1;
         nvAssert(m_uValence != 0); // we don't work with noble gasses
@@ -162,6 +162,13 @@ struct ForceKey
     bool operator ==(const ForceKey& other) const { return m_uAtom1 == other.m_uAtom1 && m_uAtom2 == other.m_uAtom2; }
     NvU32 getAtom1Index() const { return m_uAtom1; }
     NvU32 getAtom2Index() const { return m_uAtom2; }
+#if ASSERT_ONLY_CODE
+    template <class T>
+    bool dbgAreIndicesSane(const Atom<T> &atom1, const Atom<T> &atom2)
+    {
+        return &atom2 - &atom1 == m_uAtom2 - m_uAtom1;
+    }
+#endif
 private:
     NvU32 m_uAtom1 : 16;
     NvU32 m_uAtom2 : 16;
@@ -181,32 +188,141 @@ struct Force
 {
     Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
 
-    bool hadCollision() const { return m_collisionDetected; }
-    bool isCovalentBond() const { return m_isCovalentBond; }
-
-    void notifyCollision() { m_collisionDetected = 1; }
-    void dropCovalentBond() { nvAssert(m_isCovalentBond == 1); m_isCovalentBond = 0; }
-    void setCovalentBond() { nvAssert(m_isCovalentBond == 0); m_isCovalentBond = 1; }
-
-    MyUnits<T> m_fPotential[2]; // potentials corresponding prev and next state of the system
-    MyUnits<T> m_fDistSqr[2]; // distances between atoms corresponding to prev and next state of the system
-
+    // returns true if there is a force, false if the force is 0
     template <NvU32 index>
-    bool computeForce(NvU32 nProtons1, NvU32 nProtons2, rtvector<MyUnits<T>, 3> vInR, rtvector<MyUnits<T>, 3>& vOutForce)
+    bool computeForce(const Atom<T>& atom1, const Atom<T>& atom2, const rtvector<MyUnits<T>, 3> &vDir, rtvector<MyUnits<T>, 3>& vOutForce)
     {
         typename BondsDataBase<T>::LJ_Out out;
-        auto& eBond = BondsDataBase<T>::getEBond(nProtons1, nProtons2, 1);
-        bool hasForce = eBond.lennardJones(vInR, out);
+        auto& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
+        bool hasForce = eBond.lennardJones(vDir, out);
         m_fDistSqr[index] = out.fDistSqr; // this is needed even if force is 0
         if (hasForce)
         {
             vOutForce = out.vForce;
             m_fPotential[index] = out.fPotential;
         }
+        else
+        {
+            m_fPotential[index] = MyUnits<T>();
+        }
         return hasForce;
     }
+    // update atom.vSpeed[1]
+    void updateSpeeds1(Atom<T> &atom1, Atom<T> &atom2, const rtvector<MyUnits<T>, 3> &_vDir)
+    {
+        MyUnits<T> fMass1 = atom1.getMass();
+        MyUnits<T> fMass2 = atom2.getMass();
+        nvAssert(dot(_vDir, _vDir) == m_fDistSqr[1]);
+        auto vDir = _vDir / sqrt(m_fDistSqr[1]);
+        auto fV1 = dot(atom1.m_vSpeed[0], vDir);
+        auto fV2 = dot(atom2.m_vSpeed[0], vDir);
+
+        // if this is covalent bond and atoms had collision - we expect atoms to stick together (inelastic collission)
+        if (isCovalentBond() && hadCollision())
+        {
+            auto fV = (fV1 * fMass1 + fV2 * fMass2) / (fMass1 + fMass2);
+            atom1.m_vSpeed[1] += vDir * (fV - fV1);
+            atom2.m_vSpeed[2] += vDir * (fV - fV2);
+            return;
+        }
+
+        auto fCommonTerm = fMass1 * fMass2 * (fV1 - fV2);
+        auto fSqrtTerm = (m_fPotential[0] - m_fPotential[1]) * 2 * (fMass1 + fMass2) + fMass1 * fMass2 * sqr(fV1 - fV2);
+        // if that term is negative, this means atoms were moving against the force and their speed must have decreased, however
+        // their speed was too small to start with and it can't decrease enough to compensate for increase in potential energy
+        if (fSqrtTerm < 0)
+        {
+            fSqrtTerm = MyUnits<T>();
+        }
+        else
+        {
+            fSqrtTerm = sqrt(fSqrtTerm * fMass1 * fMass2);
+        }
+        // Equations for wolfram cloud:
+        // E1:=m1/2*V1^2+m2/2*V2^2+fPotPrev==m1/2*(V1+dV1)^2+m2/2*(V2+dV2)^2+fPotNext (* conservation of energy *)
+        // E2:=m1*V1+m2*V2==m1*(V1+dV1)+m2*(V2+dV2) (* conservation of momentum *)
+        // E3:=FullSimplify[Solve[E1&&E2,{dV1,dV2}]]
+        // This yields two solutions:
+        // - solution1 is where final speeds are directed towards each other (atoms will be getting closer)
+        // - solution2 is where final speeds are directed away from each other (atoms will be getting farther apart)
+        double fSign = 1.; // corresponds to solution1
+        // solution2 happens in either of two cases:
+        // - atoms have just collided and thus must now start moving away from each other
+        // - atoms were moving away from each other on the previous time step, and distance between them has again increased on this time step
+        nvAssert(m_fDistSqr > 0);
+        if (hadCollision() || (fV1 - fV2 < 0 && m_fDistSqr[1] > m_fDistSqr[0]))
+        {
+            fSign = -1; // corresponds to solution 2
+        }
+        auto fDeltaV1 = (fSqrtTerm * fSign - fCommonTerm) / (fMass1 * (fMass1 + fMass2));
+        auto fDeltaV2 = (-fSqrtTerm * fSign + fCommonTerm) / (fMass2 * (fMass1 + fMass2));
+        atom1.m_vSpeed[1] += vDir * fDeltaV1;
+        atom2.m_vSpeed[1] += vDir * fDeltaV2;
+    }
+    // a chance for the force to repel atoms if they are too close - to avoid explosion of simulation
+    bool adjustAtomsDistance(ForceKey forceKey, Atom<T>& atom1, Atom<T>& atom2, const rtvector<MyUnits<T>, 3>& vDir)
+    {
+        nvAssert(forceKey.dbgAreIndicesSane(atom1, atom2));
+        auto& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
+        auto fDistSqr = lengthSquared(vDir);
+        // is distance between the atoms larger than the bonth length? then we don't have to do anything
+        if (fDistSqr > eBond.m_fLengthSqr)
+            return false;
+
+        notifyCollision();
+
+        // if this force is not yet covalent bond and atoms have vacant orbitals - we make this force a covalent bond here
+        if (!isCovalentBond() && atom1.getNBonds() < atom1.getValence() && atom2.getNBonds() < atom2.getValence())
+        {
+            atom1.addBond(forceKey.getAtom2Index());
+            atom2.addBond(forceKey.getAtom1Index());
+            setCovalentBond();
+        }
+
+        MyUnits<T> fMass1 = atom1.getMass();
+        MyUnits<T> fMass2 = atom2.getMass();
+        auto fDist = sqrt(fDistSqr);
+        // make slightly larger adjustment than necessary to account for floating point errors
+        auto fAdjustment = (eBond.m_fLength - sqrt(fDistSqr)) + MyUnits<T>::angstrom() / 1024;
+        // massive atom is adjusted by a smaller amount
+        double fWeight = removeUnits(fMass2 / (fMass1 + fMass2));
+        atom1.m_vPos[1] += vDir * (fAdjustment / fDist * (    fWeight));
+        atom2.m_vPos[1] -= vDir * (fAdjustment / fDist * (1 - fWeight));
+        return true;
+    }
+    // returns true if force is now zero, returns false otherwise
+    bool dissociateWeakBond(ForceKey forceKey, Atom<T> &atom1, Atom<T> &atom2, const rtvector<MyUnits<T>, 3>& vDir)
+    {
+        nvAssert(forceKey.dbgAreIndicesSane(atom1, atom2));
+        auto fDistSqr = dot(vDir, vDir);
+
+        auto& bond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
+        // if atoms are too far apart - erase the force
+        if (fDistSqr >= BondsDataBase<T>::s_zeroForceDistSqr)
+        {
+            return true;
+        }
+        // check covalent bond threshold - it's smaller than global zero-force threshold
+        else if (isCovalentBond() && fDistSqr >= bond.m_fDissocLengthSqr)
+        {
+            dropCovalentBond();
+            atom1.removeBond(forceKey.getAtom2Index());
+            atom2.removeBond(forceKey.getAtom1Index());
+        }
+        return false;
+    }
+
+    bool shouldDraw() const { return m_isCovalentBond; } // should we draw this?
 
 private:
+    bool isCovalentBond() const { return m_isCovalentBond; }
+    void setCovalentBond() { nvAssert(m_isCovalentBond == 0); m_isCovalentBond = 1; }
+    void dropCovalentBond() { nvAssert(m_isCovalentBond == 1); m_isCovalentBond = 0; }
+    void notifyCollision() { m_collisionDetected = 1; }
+    bool hadCollision() const { return m_collisionDetected; }
+
+    MyUnits<T> m_fPotential[2]; // potentials corresponding prev and next state of the system
+    MyUnits<T> m_fDistSqr[2]; // distances between atoms corresponding to prev and next state of the system
     NvU32 m_collisionDetected : 1; // collision detected during time step
     NvU32 m_isCovalentBond : 1;
 };
