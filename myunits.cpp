@@ -136,7 +136,7 @@ void MyUnitsTest::test()
 
     // check that our temperature and pressure formulas match reality
     {
-        MyUnits<double> fMass = BondsDataBase<double>::getAtom(NPROTONS_O).m_fMass + BondsDataBase<double>::getAtom(NPROTONS_H).m_fMass * 2;
+        MyUnits<double> fMass = BondsDataBase<double>::getElement(NPROTONS_O).m_fMass + BondsDataBase<double>::getElement(NPROTONS_H).m_fMass * 2;
         // the mass of water molecule must be about 18.01528 g/mol - check that
         MyUnits<double> fMass1 = MyUnits<double>::gram() * 18.01528 / AVOGADRO;
         s_bTested = s_bTested && aboutEqual<double>(fMass.m_value, fMass1.m_value, 0.1);
@@ -236,7 +236,7 @@ void MyUnitsTest::test()
 bool MyUnitsTest::s_bTested = false;
 
 std::unordered_map<ATOM_KEY, BondsDataBase<double>::ABond> BondsDataBase<double>::m_aBonds;
-std::unordered_map<NvU32, BondsDataBase<double>::Atom> BondsDataBase<double>::m_atoms;
+std::unordered_map<NvU32, BondsDataBase<double>::Element> BondsDataBase<double>::m_elements;
 MyUnits<double> BondsDataBase<double>::s_zeroForceDist = MyUnits<double>::angstrom() * 6;
 MyUnits<double> BondsDataBase<double>::s_zeroForceDistSqr = BondsDataBase<double>::s_zeroForceDist * BondsDataBase<double>::s_zeroForceDist;
 
@@ -267,9 +267,9 @@ void BondsDataBase<T>::setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectron
 template <class T>
 void BondsDataBase<T>::setAtom(NvU32 nProtons, MyUnits<T> fMass, MyUnits<T> fRadius, T fElectroNegativity, NvU32 uValence)
 {
-    auto& atom = m_atoms[nProtons];
-    atom.m_fMass = fMass;
-    atom.m_fRadius = fRadius;
-    atom.m_fElectroNegativity = fElectroNegativity;
-    atom.m_uValence = uValence;
+    auto& element = m_elements[nProtons];
+    element.m_fMass = fMass;
+    element.m_fRadius = fRadius;
+    element.m_fElectroNegativity = fElectroNegativity;
+    element.m_uValence = uValence;
 }

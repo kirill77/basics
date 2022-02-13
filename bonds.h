@@ -62,17 +62,17 @@ struct BondsDataBase
     static void init();
     static const std::unordered_map<NvU32, ABond>& getABonds() { return m_aBonds; }
 
-    struct Atom
+    struct Element
     {
         MyUnits<double> m_fMass, m_fRadius;
         T m_fElectroNegativity = 0;
         NvU32 m_uValence = -1;
     };
-    static const Atom& getAtom(NvU32 nProtons)
+    static const Element& getElement(NvU32 nProtons)
     {
-        const Atom& atom = m_atoms[nProtons];
-        nvAssert(atom.m_fMass > 0);
-        return atom;
+        const auto& element = m_elements[nProtons];
+        nvAssert(element.m_fMass > 0);
+        return element;
     }
 
 private:
@@ -89,7 +89,58 @@ private:
     static void setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons, MyUnits<T> fBondLength, MyUnits<T> fBondEnergy);
     static void setAtom(NvU32 nProtons, MyUnits<T> fMass, MyUnits<T> fRadius, T fElectroNegativity, NvU32 uValence);
     static std::unordered_map<ATOM_KEY, ABond> m_aBonds;
-    static std::unordered_map<NvU32, Atom> m_atoms;
+    static std::unordered_map<NvU32, Element> m_elements;
+};
+
+template <class T>
+struct Atom
+{
+    Atom(NvU32 nProtons = 1) : m_nBondedAtoms(0), m_nProtons(nProtons), m_uValence(BondsDataBase<T>::getElement(m_nProtons).m_uValence)
+    {
+        for (NvU32 u = 0; u < m_bondedAtoms.size(); ++u) m_bondedAtoms[u] = -1;
+        nvAssert(m_uValence != 0); // we don't work with noble gasses
+    }
+
+    NvU32 getNProtons() const { return m_nProtons; }
+    MyUnits<T> getMass() const { return BondsDataBase<T>::getElement(m_nProtons).m_fMass; }
+    NvU32 getValence() const { return m_uValence; }
+    NvU32 getNBonds() const { return m_nBondedAtoms; }
+    NvU32 getBond(NvU32 uBond) const { nvAssert(uBond < m_nBondedAtoms); return m_bondedAtoms[uBond]; }
+
+    void addBond(NvU32 uAtom)
+    {
+        nvAssert(m_nBondedAtoms < m_uValence);
+        m_bondedAtoms[m_nBondedAtoms] = uAtom;
+        nvAssert(m_bondedAtoms[m_nBondedAtoms] == uAtom); // check that type conversion didn't loose information
+        ++m_nBondedAtoms;
+    }
+    void removeBond(NvU32 uAtom)
+    {
+        for (NvU32 u = 0; ; ++u)
+        {
+            nvAssert(u < m_nBondedAtoms);
+            if (m_bondedAtoms[u] == uAtom)
+            {
+                m_bondedAtoms[u] = m_bondedAtoms[--m_nBondedAtoms];
+                return;
+            }
+        }
+    }
+
+    rtvector<MyUnits<T>, 3> m_vPos[2], m_vSpeed[2], m_vForce;
+
+private:
+    union
+    {
+        NvU32 flags;
+        struct
+        {
+            NvU32 m_nProtons : 8;
+            NvU32 m_nBondedAtoms : 3;
+            NvU32 m_uValence : 3;
+        };
+    };
+    std::array<unsigned short, 4> m_bondedAtoms;
 };
 
 // force acting between two atoms (when we have force acting between 3 atoms we'll call it Force3)
