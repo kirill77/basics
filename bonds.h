@@ -127,9 +127,16 @@ struct Atom
         }
     }
 
-    rtvector<MyUnits<T>, 3> m_vPos[2], m_vSpeed[2], m_vForce;
+    std::array<rtvector<MyUnits<T>, 3>, 2> m_vSpeed;
+    rtvector<MyUnits<T>, 3> m_vForce;
+
+    const rtvector<MyUnits<T>, 3>& getUnwrappedPos(NvU32 index) const { return m_vPos[index]; }
+    template <class WRAPPER>
+    void setPos(NvU32 uDst, const rtvector<MyUnits<T>, 3>& vNewPos, const WRAPPER& w) { m_vPos[uDst] = w.wrapThePos(vNewPos); }
+    void copyPos(NvU32 uDst, NvU32 uSrc) { m_vPos[uDst] = m_vPos[uSrc]; }
 
 private:
+    std::array<rtvector<MyUnits<T>, 3>, 2> m_vPos;
     union
     {
         NvU32 flags;
@@ -225,7 +232,7 @@ struct Force
         {
             auto fV = (fV1 * fMass1 + fV2 * fMass2) / (fMass1 + fMass2);
             atom1.m_vSpeed[1] += vDir * (fV - fV1);
-            atom2.m_vSpeed[2] += vDir * (fV - fV2);
+            atom2.m_vSpeed[1] += vDir * (fV - fV2);
             return;
         }
 
@@ -291,8 +298,8 @@ struct Force
         auto fAdjustment = (eBond.m_fLength - sqrt(fDistSqr)) + MyUnits<T>::angstrom() / 1024;
         // massive atom is adjusted by a smaller amount
         double fWeight = removeUnits(fMass2 / (fMass1 + fMass2));
-        atom1.m_vPos[1] += vDir * (fAdjustment / fDist * (    fWeight));
-        atom2.m_vPos[1] -= vDir * (fAdjustment / fDist * (1 - fWeight));
+        atom1.setPos(1, atom1.getUnwrappedPos(1) + vDir * (fAdjustment / fDist * (    fWeight)), w);
+        atom2.setPos(1, atom2.getUnwrappedPos(1) - vDir * (fAdjustment / fDist * (1 - fWeight)), w);
         return true;
     }
     // returns true if force is now zero, returns false otherwise
