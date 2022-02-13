@@ -189,9 +189,10 @@ struct Force
     Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
 
     // returns true if there is a force, false if the force is 0
-    template <NvU32 index>
-    bool computeForce(const Atom<T>& atom1, const Atom<T>& atom2, const rtvector<MyUnits<T>, 3> &vDir, rtvector<MyUnits<T>, 3>& vOutForce)
+    template <NvU32 index, class WRAPPER>
+    bool computeForce(const Atom<T>& atom1, const Atom<T>& atom2, const WRAPPER &w, rtvector<MyUnits<T>, 3>& vOutForce)
     {
+        rtvector<MyUnits<T>, 3> vDir = w.computeDir<index>(atom1, atom2);
         typename BondsDataBase<T>::LJ_Out out;
         auto& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
         bool hasForce = eBond.lennardJones(vDir, out);
@@ -208,12 +209,14 @@ struct Force
         return hasForce;
     }
     // update atom.vSpeed[1]
-    void updateSpeeds1(Atom<T> &atom1, Atom<T> &atom2, const rtvector<MyUnits<T>, 3> &_vDir)
+    template <class WRAPPER>
+    void updateSpeeds1(Atom<T> &atom1, Atom<T> &atom2, const WRAPPER &w)
     {
         MyUnits<T> fMass1 = atom1.getMass();
         MyUnits<T> fMass2 = atom2.getMass();
-        nvAssert(dot(_vDir, _vDir) == m_fDistSqr[1]);
-        auto vDir = _vDir / sqrt(m_fDistSqr[1]);
+        rtvector<MyUnits<T>, 3> vDir = w.computeDir<1>(atom2, atom1);
+        nvAssert(dot(vDir, vDir) == m_fDistSqr[1]);
+        vDir /= sqrt(m_fDistSqr[1]);
         auto fV1 = dot(atom1.m_vSpeed[0], vDir);
         auto fV2 = dot(atom2.m_vSpeed[0], vDir);
 
@@ -260,10 +263,12 @@ struct Force
         atom2.m_vSpeed[1] += vDir * fDeltaV2;
     }
     // a chance for the force to repel atoms if they are too close - to avoid explosion of simulation
-    bool adjustAtomsDistance(ForceKey forceKey, Atom<T>& atom1, Atom<T>& atom2, const rtvector<MyUnits<T>, 3>& vDir)
+    template <class WRAPPER>
+    bool adjustAtomsDistance(ForceKey forceKey, Atom<T>& atom1, Atom<T>& atom2, const WRAPPER &w)
     {
         nvAssert(forceKey.dbgAreIndicesSane(atom1, atom2));
         auto& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
+        rtvector<MyUnits<T>, 3> vDir = w.computeDir<1>(atom1, atom2);
         auto fDistSqr = lengthSquared(vDir);
         // is distance between the atoms larger than the bonth length? then we don't have to do anything
         if (fDistSqr > eBond.m_fLengthSqr)
@@ -291,9 +296,11 @@ struct Force
         return true;
     }
     // returns true if force is now zero, returns false otherwise
-    bool dissociateWeakBond(ForceKey forceKey, Atom<T> &atom1, Atom<T> &atom2, const rtvector<MyUnits<T>, 3>& vDir)
+    template <class WRAPPER>
+    bool dissociateWeakBond(ForceKey forceKey, Atom<T> &atom1, Atom<T> &atom2, const WRAPPER &w)
     {
         nvAssert(forceKey.dbgAreIndicesSane(atom1, atom2));
+        rtvector<MyUnits<T>, 3> vDir = w.computeDir<1>(atom1, atom2);
         auto fDistSqr = dot(vDir, vDir);
 
         auto& bond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
