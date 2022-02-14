@@ -32,22 +32,44 @@ struct BondsDataBase
     };
     struct EBond
     {
+        EBond() { }
+        static constexpr NvU32 MAX_ALLOWED_ENERGY_KJ_PER_MOLE = 600; // O-O bond energy is 140 KJ per mole
+        EBond(MyUnits<T> fBondLength, MyUnits<T> fBondEnergy)
+        {
+            m_fLength = fBondLength;
+            m_fLengthSqr = sqr(m_fLength);
+            m_fDissocLengthSqr = sqr(m_fLength * 2); // TODO: this is ad-hoc - figure out better way
+            // we need to compute sigma and epsilon to match fBondLength and fBondEnergy
+            m_fSigma = fBondLength * pow(2, -1. / 6);
+            m_fEpsilon = fBondEnergy;
+            // to avoid explosion of the simulation, we don't allow potential energy between particles to get larger than some ad-hoc value
+            MyUnits<T> fMaxAllowedEnergy = MyUnits<T>::kJperMole() * MAX_ALLOWED_ENERGY_KJ_PER_MOLE;
+            // solved in wolfram:
+            // fPow2 = fSigma * fSigma / (fDistSqr)
+            // fPow6 = fPow2 * fPow2 * fPow2
+            // fPotential := fEpsilon * 4 * (fPow6 *fPow6 - fPow6)
+            // Solve[fPotential==fMaxAllowedEnergy, fDistSqr]
+            m_fMinAllowedDistSqr = pow(pow(m_fSigma, 6.) * (sqrt(m_fEpsilon * (m_fEpsilon + fMaxAllowedEnergy)) - m_fEpsilon) / fMaxAllowedEnergy, 1./3) * pow(2., 1. / 3);
+            double fDbgRatio = sqrt(m_fMinAllowedDistSqr.m_value) / sqrt(m_fLengthSqr.m_value);
+            nvAssert(fDbgRatio > 0 && fDbgRatio < 0.86); // ad-hoc check - tuned to barely pass for 600 KJ per Mole and O=O bond
+        }
         bool lennardJones(const rtvector<MyUnits<T>, 3>& vSrcToDstDir, LJ_Out &out) const
         {
             nvAssert(m_fEpsilon > 0 && m_fSigma > 0);
             out.fDistSqr = lengthSquared(vSrcToDstDir);
             if (out.fDistSqr >= s_zeroForceDistSqr)
                 return false;
-            MyUnits<T> fPow2 = m_fSigma * m_fSigma / out.fDistSqr;
+            MyUnits<T> fSafeDistSqr = std::max(out.fDistSqr, m_fMinAllowedDistSqr);
+            MyUnits<T> fPow2 = m_fSigma * m_fSigma / fSafeDistSqr;
             MyUnits<T> fPow6 = fPow2 * fPow2 * fPow2;
             MyUnits<T> fPow12 = fPow6 * fPow6;
             out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
             auto fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
             nvAssert(!isnan(fForceTimesR.m_value));
-            out.vForce = vSrcToDstDir * (fForceTimesR / out.fDistSqr);
+            out.vForce = vSrcToDstDir * (fForceTimesR / fSafeDistSqr);
             return true;
         }
-        MyUnits<T> m_fLength, m_fLengthSqr, m_fDissocLengthSqr, m_fEnergy, m_fEpsilon, m_fSigma;
+        MyUnits<T> m_fLength, m_fLengthSqr, m_fDissocLengthSqr, m_fEpsilon, m_fSigma, m_fMinAllowedDistSqr;
     };
     // describes different bonds that may happen between particular types of atoms (for instance O-O and O=O would be in the same ABond, but O-H would be in different ABond)
     struct ABond
@@ -215,7 +237,6 @@ struct Force
         }
         return hasForce;
     }
-    // update atom.vSpeed[1]
     template <class WRAPPER>
     void updateSpeeds1(Atom<T> &atom1, Atom<T> &atom2, const WRAPPER &w)
     {
@@ -269,6 +290,7 @@ struct Force
         atom1.m_vSpeed[1] += vDir * fDeltaV1;
         atom2.m_vSpeed[1] += vDir * fDeltaV2;
     }
+#if 0
     // a chance for the force to repel atoms if they are too close - to avoid explosion of simulation
     template <class WRAPPER>
     bool adjustAtomsDistance(ForceKey forceKey, Atom<T>& atom1, Atom<T>& atom2, const WRAPPER &w)
@@ -302,6 +324,7 @@ struct Force
         atom2.setPos(1, atom2.getUnwrappedPos(1) - vDir * (fAdjustment / fDist * (1 - fWeight)), w);
         return true;
     }
+#endif
     // returns true if force is now zero, returns false otherwise
     template <class WRAPPER>
     bool dissociateWeakBond(ForceKey forceKey, Atom<T> &atom1, Atom<T> &atom2, const WRAPPER &w)
@@ -316,13 +339,28 @@ struct Force
         {
             return true;
         }
-        // check covalent bond threshold - it's smaller than global zero-force threshold
-        else if (isCovalentBond() && fDistSqr >= bond.m_fDissocLengthSqr)
+
+        if (!isCovalentBond())
         {
-            dropCovalentBond();
-            atom1.removeBond(forceKey.getAtom2Index());
-            atom2.removeBond(forceKey.getAtom1Index());
+            // if this force is not yet covalent bond and atoms have vacant orbitals - we make this force a covalent bond here
+            if (fDistSqr < bond.m_fDissocLengthSqr && atom1.getNBonds() < atom1.getValence() && atom2.getNBonds() < atom2.getValence())
+            {
+                atom1.addBond(forceKey.getAtom2Index());
+                atom2.addBond(forceKey.getAtom1Index());
+                setCovalentBond();
+            }
         }
+        else
+        {
+            // check covalent bond threshold - it's smaller than global zero-force threshold
+            if (isCovalentBond() && fDistSqr >= bond.m_fDissocLengthSqr)
+            {
+                dropCovalentBond();
+                atom1.removeBond(forceKey.getAtom2Index());
+                atom2.removeBond(forceKey.getAtom1Index());
+            }
+        }
+
         return false;
     }
 

@@ -67,13 +67,13 @@ void MyUnitsTest::test()
     {
         // must have data for H-H
         auto& eBond = BondsDataBase<double>::getEBond(1, 1, 1);
-        s_bTested = s_bTested && eBond.m_fEnergy > 0;
+        s_bTested = s_bTested && eBond.m_fEpsilon > 0;
         nvAssert(s_bTested);
     }
     {
         // must have data for H-O
         auto& eBond = BondsDataBase<double>::getEBond(1, 8, 1);
-        s_bTested = s_bTested && eBond.m_fEnergy > 0;
+        s_bTested = s_bTested && eBond.m_fEpsilon > 0;
         nvAssert(s_bTested);
     }
 
@@ -87,7 +87,7 @@ void MyUnitsTest::test()
             for (NvU32 nElectrons = 1; nElectrons < MAX_ELECTRONS_PER_BOND; ++nElectrons)
             {
                 const auto& eBond = aBond[nElectrons];
-                if (eBond.m_fEnergy == 0) // invalid eBond?
+                if (eBond.m_fEpsilon == 0) // invalid eBond?
                     continue;
                 NvU32 uDim = rng.generateUnsigned(0, 3);
                 rtvector<MyUnits<double>, 3> vPos[2];
@@ -123,11 +123,11 @@ void MyUnitsTest::test()
                     }
                 }
                 fEnergy *= deltaX;
-                double fPercentDifference = std::abs(fEnergy.m_value - eBond.m_fEnergy.m_value) / eBond.m_fEnergy.m_value * 100;
+                double fPercentDifference = std::abs(fEnergy.m_value - eBond.m_fEpsilon.m_value) / eBond.m_fEpsilon.m_value * 100;
                 s_bTested = s_bTested && fPercentDifference < 1;
                 nvAssert(s_bTested);
                 // potential is negative - that's why plus instead of minus here
-                fPercentDifference = std::abs(fPotential.m_value + eBond.m_fEnergy.m_value) / eBond.m_fEnergy.m_value * 100;
+                fPercentDifference = std::abs(fPotential.m_value + eBond.m_fEpsilon.m_value) / eBond.m_fEpsilon.m_value * 100;
                 s_bTested = s_bTested && fPercentDifference < 1;
                 nvAssert(s_bTested);
             }
@@ -255,13 +255,7 @@ template <class T>
 void BondsDataBase<T>::setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons, MyUnits<T> fBondLength, MyUnits<T> fBondEnergy)
 {
     auto& eBond = accessEBond(nProtons1, nProtons2, nElectrons);
-    eBond.m_fLength = fBondLength;
-    eBond.m_fLengthSqr = sqr(eBond.m_fLength);
-    eBond.m_fDissocLengthSqr = sqr(fBondLength * 2); // TODO: this is ad-hoc - figure out better way
-    eBond.m_fEnergy = fBondEnergy;
-    // we need to compute sigma and epsilon to match fBondLength and fBondEnergy
-    eBond.m_fSigma = fBondLength * pow(2, -1. / 6);
-    eBond.m_fEpsilon = fBondEnergy;
+    eBond = EBond(fBondLength, fBondEnergy);
     accessEBond(nProtons2, nProtons1, nElectrons) = eBond;
 }
 template <class T>

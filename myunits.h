@@ -113,6 +113,7 @@ namespace std
 };
 
 template <class T> MyUnits<T> sqrt(MyUnits<T> s) { return MyUnits<T>(::sqrt(s.m_value)); }
+template <class T> MyUnits<T> pow(MyUnits<T> s, T p) { return MyUnits<T>(::pow(s.m_value, p)); }
 
 template <class UNITS>
 inline const typename UNITS::T& removeUnits(const UNITS& s) { return (const typename UNITS::T&)s; }
