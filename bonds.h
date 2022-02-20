@@ -150,7 +150,6 @@ struct Atom
     }
 
     std::array<rtvector<MyUnits<T>, 3>, 2> m_vSpeed;
-    rtvector<MyUnits<T>, 3> m_vForce;
 
     const rtvector<MyUnits<T>, 3>& getUnwrappedPos(NvU32 index) const { return m_vPos[index]; }
     template <class WRAPPER>
