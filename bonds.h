@@ -149,15 +149,10 @@ struct Atom
         }
     }
 
-    std::array<rtvector<MyUnits<T>, 3>, 2> m_vSpeed;
-
-    const rtvector<MyUnits<T>, 3>& getUnwrappedPos(NvU32 index) const { return m_vPos[index]; }
-    template <class WRAPPER>
-    void setPos(NvU32 uDst, const rtvector<MyUnits<T>, 3>& vNewPos, const WRAPPER& w) { m_vPos[uDst] = w.wrapThePos(vNewPos); }
-    void copyPos(NvU32 uDst, NvU32 uSrc) { m_vPos[uDst] = m_vPos[uSrc]; }
+    std::array<rtvector<MyUnits<T>, 3>, 1> m_vSpeed;
+    rtvector<MyUnits<T>, 3> m_vPos;
 
 private:
-    std::array<rtvector<MyUnits<T>, 3>, 2> m_vPos;
     union
     {
         NvU32 flags;
@@ -217,10 +212,10 @@ struct Force
     Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
 
     // returns true if there is a force, false if the force is 0
-    template <NvU32 index, class WRAPPER>
+    template <class WRAPPER>
     bool computeForce(const Atom<T>& atom1, const Atom<T>& atom2, const WRAPPER &w, rtvector<MyUnits<T>, 3>& vOutForce)
     {
-        rtvector<MyUnits<T>, 3> vDir = w.computeDir<index>(atom1, atom2);
+        rtvector<MyUnits<T>, 3> vDir = w.computeDir(atom1, atom2);
         typename BondsDataBase<T>::LJ_Out out;
         auto& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
         bool hasForce = eBond.lennardJones(vDir, out);
@@ -235,7 +230,7 @@ struct Force
     bool dissociateWeakBond(ForceKey forceKey, Atom<T> &atom1, Atom<T> &atom2, const WRAPPER &w)
     {
         nvAssert(forceKey.dbgAreIndicesSane(atom1, atom2));
-        rtvector<MyUnits<T>, 3> vDir = w.computeDir<1>(atom1, atom2);
+        rtvector<MyUnits<T>, 3> vDir = w.computeDir(atom1, atom2);
         auto fDistSqr = dot(vDir, vDir);
 
         auto& bond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
