@@ -149,8 +149,7 @@ struct Atom
         }
     }
 
-    std::array<rtvector<MyUnits<T>, 3>, 1> m_vSpeed;
-    rtvector<MyUnits<T>, 3> m_vPos;
+    rtvector<MyUnits<T>, 3> m_vPos, m_vSpeed;
 
 private:
     union
