@@ -27,8 +27,7 @@ struct BondsDataBase
     // bond length and energy, and corresponding lennard-jones parameters
     struct LJ_Out
     {
-        rtvector<MyUnits<T>, 3> vForce;
-        MyUnits<T> fDistSqr, fPotential;
+        MyUnits<T> fForceTimesR, fPotential;
     };
     struct EBond
     {
@@ -53,20 +52,18 @@ struct BondsDataBase
             double fDbgRatio = sqrt(m_fMinAllowedDistSqr.m_value) / sqrt(m_fLengthSqr.m_value);
             nvAssert(fDbgRatio > 0 && fDbgRatio < 0.86); // ad-hoc check - tuned to barely pass for 600 KJ per Mole and O=O bond
         }
-        bool lennardJones(const rtvector<MyUnits<T>, 3>& vSrcToDstDir, LJ_Out &out) const
+        bool lennardJones(const MyUnits<T> fDistSqr, LJ_Out &out) const
         {
             nvAssert(m_fEpsilon > 0 && m_fSigma > 0);
-            out.fDistSqr = lengthSquared(vSrcToDstDir);
-            if (out.fDistSqr >= s_zeroForceDistSqr)
+            if (fDistSqr >= s_zeroForceDistSqr)
                 return false;
-            MyUnits<T> fSafeDistSqr = std::max(out.fDistSqr, m_fMinAllowedDistSqr);
+            MyUnits<T> fSafeDistSqr = std::max(fDistSqr, m_fMinAllowedDistSqr);
             MyUnits<T> fPow2 = m_fSigma * m_fSigma / fSafeDistSqr;
             MyUnits<T> fPow6 = fPow2 * fPow2 * fPow2;
             MyUnits<T> fPow12 = fPow6 * fPow6;
             out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
-            auto fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
-            nvAssert(!isnan(fForceTimesR.m_value));
-            out.vForce = vSrcToDstDir * (fForceTimesR / fSafeDistSqr);
+            out.fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
+            nvAssert(!isnan(out.fForceTimesR.m_value));
             return true;
         }
         MyUnits<T> m_fLength, m_fLengthSqr, m_fDissocLengthSqr, m_fEpsilon, m_fSigma, m_fMinAllowedDistSqr;
@@ -215,12 +212,13 @@ struct Force
     bool computeForce(const Atom<T>& atom1, const Atom<T>& atom2, const WRAPPER &w, rtvector<MyUnits<T>, 3>& vOutForce)
     {
         rtvector<MyUnits<T>, 3> vDir = w.computeDir(atom1, atom2);
+        MyUnits<T> fDistSqr = dot(vDir, vDir);
         typename BondsDataBase<T>::LJ_Out out;
         auto& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
-        bool hasForce = eBond.lennardJones(vDir, out);
+        bool hasForce = eBond.lennardJones(fDistSqr, out);
         if (hasForce)
         {
-            vOutForce = out.vForce;
+            vOutForce = vDir * (out.fForceTimesR / fDistSqr);
         }
         return hasForce;
     }

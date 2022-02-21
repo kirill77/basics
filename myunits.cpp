@@ -98,11 +98,13 @@ void MyUnitsTest::test()
                 for ( ; vPos[1][uDim] < MyUnits<double>::angstrom() * 10; vPos[1][uDim] += deltaX)
                 {
                     BondsDataBase<double>::LJ_Out ljOut;
-                    ljOut.vForce = vPos[0] - vPos[1];
-                    bool bNonZero = eBond.lennardJones(ljOut.vForce, ljOut);
+                    rtvector<MyUnits<double>, 3> vDir = vPos[0] - vPos[1];
+                    MyUnits<double> fDistSqr = dot(vDir, vDir);
+                    bool bNonZero = eBond.lennardJones(fDistSqr, ljOut);
                     if (bNonZero)
                     {
-                        if (ljOut.vForce[uDim] * fPrevForce <= 0.) // we go until the force changes sign
+                        MyUnits<double> fForce = vDir[uDim] * (ljOut.fForceTimesR / fDistSqr);
+                        if (fForce * fPrevForce <= 0.) // we go until the force changes sign
                         {
                             MyUnits<double> bondLength = vPos[1][uDim];
                             double fPercentDifference = std::abs(bondLength.m_value - eBond.m_fLength.m_value) / eBond.m_fLength.m_value * 100;
@@ -113,9 +115,9 @@ void MyUnitsTest::test()
                         }
                         else
                         {
-                            fEnergy += (fPrevForce + ljOut.vForce[uDim]) / 2;
+                            fEnergy += (fPrevForce + fForce) / 2;
                         }
-                        fPrevForce = ljOut.vForce[uDim];
+                        fPrevForce = fForce;
                     }
                     else
                     {
