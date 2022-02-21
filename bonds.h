@@ -224,15 +224,9 @@ struct Force
         typename BondsDataBase<T>::LJ_Out out;
         auto& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
         bool hasForce = eBond.lennardJones(vDir, out);
-        m_fDistSqr[index] = out.fDistSqr; // this is needed even if force is 0
         if (hasForce)
         {
             vOutForce = out.vForce;
-            m_fPotential[index] = out.fPotential;
-        }
-        else
-        {
-            m_fPotential[index] = MyUnits<T>();
         }
         return hasForce;
     }
@@ -284,8 +278,6 @@ private:
     void notifyCollision() { m_collisionDetected = 1; }
     bool hadCollision() const { return m_collisionDetected; }
 
-    MyUnits<T> m_fPotential[2]; // potentials corresponding prev and next state of the system
-    MyUnits<T> m_fDistSqr[2]; // distances between atoms corresponding to prev and next state of the system
     NvU32 m_collisionDetected : 1; // collision detected during time step
     NvU32 m_isCovalentBond : 1;
 };
