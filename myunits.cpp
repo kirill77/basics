@@ -67,13 +67,13 @@ void MyUnitsTest::test()
     {
         // must have data for H-H
         auto& eBond = BondsDataBase<double>::getEBond(1, 1, 1);
-        s_bTested = s_bTested && eBond.m_fEpsilon > 0;
+        s_bTested = s_bTested && eBond.isValid();
         nvAssert(s_bTested);
     }
     {
         // must have data for H-O
         auto& eBond = BondsDataBase<double>::getEBond(1, 8, 1);
-        s_bTested = s_bTested && eBond.m_fEpsilon > 0;
+        s_bTested = s_bTested && eBond.isValid();
         nvAssert(s_bTested);
     }
 
@@ -87,7 +87,7 @@ void MyUnitsTest::test()
             for (NvU32 nElectrons = 1; nElectrons < MAX_ELECTRONS_PER_BOND; ++nElectrons)
             {
                 const auto& eBond = aBond[nElectrons];
-                if (eBond.m_fEpsilon == 0) // invalid eBond?
+                if (!eBond.isValid())
                     continue;
                 NvU32 uDim = rng.generateUnsigned(0, 3);
                 rtvector<MyUnits<double>, 3> vPos[2];
@@ -107,7 +107,7 @@ void MyUnitsTest::test()
                         if (fForce * fPrevForce <= 0.) // we go until the force changes sign
                         {
                             MyUnits<double> bondLength = vPos[1][uDim];
-                            double fPercentDifference = std::abs(bondLength.m_value - eBond.m_fLength.m_value) / eBond.m_fLength.m_value * 100;
+                            double fPercentDifference = std::abs(bondLength.m_value - eBond.getLength().m_value) / eBond.getLength().m_value * 100;
                             s_bTested = s_bTested && fPercentDifference < 1;
                             nvAssert(s_bTested);
                             fEnergy = MyUnits<double>();
@@ -125,11 +125,11 @@ void MyUnitsTest::test()
                     }
                 }
                 fEnergy *= deltaX;
-                double fPercentDifference = std::abs(fEnergy.m_value - eBond.m_fEpsilon.m_value) / eBond.m_fEpsilon.m_value * 100;
+                double fPercentDifference = std::abs(fEnergy.m_value - eBond.getEnergy().m_value) / eBond.getEnergy().m_value * 100;
                 s_bTested = s_bTested && fPercentDifference < 1;
                 nvAssert(s_bTested);
                 // potential is negative - that's why plus instead of minus here
-                fPercentDifference = std::abs(fPotential.m_value + eBond.m_fEpsilon.m_value) / eBond.m_fEpsilon.m_value * 100;
+                fPercentDifference = std::abs(fPotential.m_value + eBond.getEnergy().m_value) / eBond.getEnergy().m_value * 100;
                 s_bTested = s_bTested && fPercentDifference < 1;
                 nvAssert(s_bTested);
             }

@@ -48,11 +48,15 @@ struct BondsDataBase
             // fPow6 = fPow2 * fPow2 * fPow2
             // fPotential := fEpsilon * 4 * (fPow6 *fPow6 - fPow6)
             // Solve[fPotential==fMaxAllowedEnergy, fDistSqr]
-            m_fMinAllowedDistSqr = pow(pow(m_fSigma, 6.) * (sqrt(m_fEpsilon * (m_fEpsilon + fMaxAllowedEnergy)) - m_fEpsilon) / fMaxAllowedEnergy, 1./3) * pow(2., 1. / 3);
+            m_fMinAllowedDistSqr = pow(pow(m_fSigma, 6.) * (sqrt(m_fEpsilon * (m_fEpsilon + fMaxAllowedEnergy)) - m_fEpsilon) / fMaxAllowedEnergy, 1. / 3) * pow(2., 1. / 3);
             double fDbgRatio = sqrt(m_fMinAllowedDistSqr.m_value) / sqrt(m_fLengthSqr.m_value);
             nvAssert(fDbgRatio > 0 && fDbgRatio < 0.86); // ad-hoc check - tuned to barely pass for 600 KJ per Mole and O=O bond
         }
-        bool lennardJones(const MyUnits<T> fDistSqr, LJ_Out &out) const
+        bool isValid() const { return m_fEpsilon > 0; }
+        MyUnits<T> getEnergy() const { return m_fEpsilon; }
+        MyUnits<T> getLength() const { return m_fLength; }
+        MyUnits<T> getDissocLengthSqr() const { return m_fDissocLengthSqr; }
+        bool lennardJones(const MyUnits<T> fDistSqr, LJ_Out& out) const
         {
             nvAssert(m_fEpsilon > 0 && m_fSigma > 0);
             if (fDistSqr >= s_zeroForceDistSqr)
@@ -66,7 +70,8 @@ struct BondsDataBase
             nvAssert(!isnan(out.fForceTimesR.m_value));
             return true;
         }
-        MyUnits<T> m_fLength, m_fLengthSqr, m_fDissocLengthSqr, m_fEpsilon, m_fSigma, m_fMinAllowedDistSqr;
+    private:
+        MyUnits<T> m_fLengthSqr, m_fSigma, m_fMinAllowedDistSqr, m_fEpsilon, m_fLength, m_fDissocLengthSqr;
     };
     // describes different bonds that may happen between particular types of atoms (for instance O-O and O=O would be in the same ABond, but O-H would be in different ABond)
     struct ABond
@@ -240,7 +245,7 @@ struct Force
         if (!isCovalentBond())
         {
             // if this force is not yet covalent bond and atoms have vacant orbitals - we make this force a covalent bond here
-            if (fDistSqr < bond.m_fDissocLengthSqr && atom1.getNBonds() < atom1.getValence() && atom2.getNBonds() < atom2.getValence())
+            if (fDistSqr < bond.getDissocLengthSqr() && atom1.getNBonds() < atom1.getValence() && atom2.getNBonds() < atom2.getValence())
             {
                 atom1.addBond(forceKey.getAtom2Index());
                 atom2.addBond(forceKey.getAtom1Index());
@@ -250,7 +255,7 @@ struct Force
         else
         {
             // check covalent bond threshold - it's smaller than global zero-force threshold
-            if (isCovalentBond() && fDistSqr >= bond.m_fDissocLengthSqr)
+            if (isCovalentBond() && fDistSqr >= bond.getDissocLengthSqr())
             {
                 dropCovalentBond();
                 atom1.removeBond(forceKey.getAtom2Index());
