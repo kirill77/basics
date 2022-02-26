@@ -208,13 +208,19 @@ struct std::hash<ForceKey>
     }
 };
 template <class T>
+struct ForceData
+{
+    rtvector<MyUnits<T>, 3> vForce;
+    MyUnits<T> fPotential;
+};
+template <class T>
 struct Force
 {
     Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
 
     // returns true if there is a force, false if the force is 0
     template <class WRAPPER>
-    bool computeForce(const Atom<T>& atom1, const Atom<T>& atom2, const WRAPPER &w, rtvector<MyUnits<T>, 3>& vOutForce)
+    bool computeForce(const Atom<T>& atom1, const Atom<T>& atom2, const WRAPPER &w, ForceData<T> &outForceData)
     {
         rtvector<MyUnits<T>, 3> vDir = w.computeDir(atom1, atom2);
         MyUnits<T> fDistSqr = dot(vDir, vDir);
@@ -223,7 +229,8 @@ struct Force
         bool hasForce = eBond.lennardJones(fDistSqr, out);
         if (hasForce)
         {
-            vOutForce = vDir * (out.fForceTimesR / fDistSqr);
+            outForceData.vForce = vDir * (out.fForceTimesR / fDistSqr);
+            outForceData.fPotential = out.fPotential;
         }
         return hasForce;
     }
