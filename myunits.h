@@ -106,6 +106,8 @@ struct MyUnits
     T toAtmospheres() const { return (T)(m_value * (TO_KILOGRAMS / TO_SECONDS / TO_SECONDS / TO_METERS / 101325)); }
 };
 
+template <class T> using MyUnits3 = rtvector<MyUnits<T>, 3>;
+
 namespace std
 {
     template <class T>
