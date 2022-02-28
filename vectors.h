@@ -148,6 +148,15 @@ DEFINE_CONCRETE_VECTORS(uint);
 				for (int i = 0; i < n; ++i) \
 					result[i] = a[i] op b; \
 				return result; \
+			} \
+			/* for rtvector<MyUnits<>, n> to work */ \
+			template <typename T, int n> \
+			rtvector<T, n> operator op (rtvector<T, n> const & a, typename T::T b) \
+			{ \
+				rtvector<T, n> result; \
+				for (int i = 0; i < n; ++i) \
+					result[i] = a[i] op b; \
+				return result; \
 			}
 
 #define DEFINE_INPLACE_OPERATORS(op) \
