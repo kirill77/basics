@@ -61,8 +61,8 @@ struct BondsDataBase
             nvAssert(m_fEpsilon > 0 && m_fSigma > 0);
             if (fDistSqr >= s_zeroForceDistSqr)
                 return false;
-            MyUnits<T> fSafeDistSqr = std::max(fDistSqr, m_fMinAllowedDistSqr);
-            MyUnits<T> fPow2 = m_fSigma * m_fSigma / fSafeDistSqr;
+            // fDistSqr = std::max(fDistSqr, m_fMinAllowedDistSqr);
+            MyUnits<T> fPow2 = m_fSigma * m_fSigma / fDistSqr;
             MyUnits<T> fPow6 = fPow2 * fPow2 * fPow2;
             MyUnits<T> fPow12 = fPow6 * fPow6;
             out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
