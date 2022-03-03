@@ -56,7 +56,7 @@ struct BondsDataBase
         MyUnits<T> getEnergy() const { return m_fEpsilon; }
         MyUnits<T> getLength() const { return m_fLength; }
         MyUnits<T> getDissocLengthSqr() const { return m_fDissocLengthSqr; }
-        bool lennardJones(const MyUnits<T> fDistSqr, LJ_Out& out) const
+        bool lennardJones(MyUnits<T> fDistSqr, LJ_Out& out) const
         {
             nvAssert(m_fEpsilon > 0 && m_fSigma > 0);
             if (fDistSqr >= s_zeroForceDistSqr)
@@ -220,7 +220,7 @@ struct Force
 
     // returns true if there is a force, false if the force is 0
     template <class WRAPPER>
-    bool computeForce(const Atom<T>& atom1, const Atom<T>& atom2, const WRAPPER &w, ForceData<T> &outForceData)
+    bool computeForce(const Atom<T>& atom1, const Atom<T>& atom2, const WRAPPER &w, ForceData<T> &outForceData) const
     {
         rtvector<MyUnits<T>, 3> vDir = w.computeDir(atom1, atom2);
         MyUnits<T> fDistSqr = dot(vDir, vDir);
