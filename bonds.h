@@ -28,6 +28,7 @@ struct BondsDataBase
     struct LJ_Out
     {
         MyUnits<T> fForceTimesR, fPotential;
+        T fNormalizedForceTimesR; // at extremal force point this equals to just R (because 1 * R)
     };
     struct EBond
     {
@@ -35,6 +36,9 @@ struct BondsDataBase
         static constexpr NvU32 MAX_ALLOWED_ENERGY_KJ_PER_MOLE = 600; // O-O bond energy is 140 KJ per mole
         EBond(MyUnits<T> fBondLength, MyUnits<T> fBondEnergy)
         {
+#if ASSERT_ONLY_CODE
+            m_fDbgBondLength = fBondLength;
+#endif
             m_fLength = fBondLength;
             m_fLengthSqr = sqr(m_fLength);
             m_fDissocLengthSqr = sqr(m_fLength * 2); // TODO: this is ad-hoc - figure out better way
@@ -51,6 +55,22 @@ struct BondsDataBase
             m_fMinAllowedDistSqr = pow(pow(m_fSigma, 6.) * (sqrt(m_fEpsilon * (m_fEpsilon + fMaxAllowedEnergy)) - m_fEpsilon) / fMaxAllowedEnergy, 1. / 3) * pow(2., 1. / 3);
             double fDbgRatio = sqrt(m_fMinAllowedDistSqr.m_value) / sqrt(m_fLengthSqr.m_value);
             nvAssert(fDbgRatio > 0 && fDbgRatio < 0.86); // ad-hoc check - tuned to barely pass for 600 KJ per Mole and O=O bond
+            // solved in wolfram:
+            // fDistSqr = fDist*fDist
+            // fSigma = fBondLength * 2 ^ (-1. / 6)
+            // fPow2 = fSigma * fSigma / fDistSqr
+            // fPow6 = fPow2 * fPow2 * fPow2
+            // fPow12 = fPow6 * fPow6
+            // fPotential = fEpsilon * 4 * (fPow12 - fPow6)
+            // fForceTimesR = fEpsilon * 24 * (fPow12 * 2 - fPow6)
+            // dForce=D[fForceTimesR/fDist, fDist]
+            // Solve[dForce == 0, fDist]
+            MyUnits<T> fExtremalForceDist = fBondLength * 1.10868; // that value is from wolfram
+            LJ_Out out;
+            m_fExtremalForce = MyUnits<T>(1); // to avoid division by zero inside lennardJones
+            bool bHasForce = lennardJones(fExtremalForceDist * fExtremalForceDist, out);
+            nvAssert(bHasForce);
+            m_fExtremalForce = out.fForceTimesR / fExtremalForceDist;
         }
         bool isValid() const { return m_fEpsilon > 0; }
         MyUnits<T> getEnergy() const { return m_fEpsilon; }
@@ -67,11 +87,15 @@ struct BondsDataBase
             MyUnits<T> fPow12 = fPow6 * fPow6;
             out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
             out.fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
+            out.fNormalizedForceTimesR = (out.fForceTimesR / m_fExtremalForce).m_value;
             nvAssert(!isnan(out.fForceTimesR.m_value));
             return true;
         }
     private:
-        MyUnits<T> m_fLengthSqr, m_fSigma, m_fMinAllowedDistSqr, m_fEpsilon, m_fLength, m_fDissocLengthSqr;
+        MyUnits<T> m_fLengthSqr, m_fSigma, m_fMinAllowedDistSqr, m_fEpsilon, m_fLength, m_fDissocLengthSqr, m_fExtremalForce;
+#if ASSERT_ONLY_CODE
+        MyUnits<T> m_fDbgBondLength;
+#endif
     };
     // describes different bonds that may happen between particular types of atoms (for instance O-O and O=O would be in the same ABond, but O-H would be in different ABond)
     struct ABond
@@ -211,7 +235,7 @@ template <class T>
 struct ForceData
 {
     rtvector<MyUnits<T>, 3> vForce;
-    MyUnits<T> fPotential;
+    T fNormalizedForce;
 };
 template <class T>
 struct Force
@@ -230,7 +254,8 @@ struct Force
         if (hasForce)
         {
             outForceData.vForce = vDir * (out.fForceTimesR / fDistSqr);
-            outForceData.fPotential = out.fPotential;
+            outForceData.fNormalizedForce = out.fNormalizedForceTimesR / sqrt(fDistSqr.m_value);
+            nvAssert(outForceData.fNormalizedForce < 1.01);
         }
         return hasForce;
     }
