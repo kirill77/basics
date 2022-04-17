@@ -191,10 +191,18 @@ private:
     std::array<unsigned short, 4> m_bondedAtoms;
 };
 
-// force acting between two atoms (when we have force acting between 3 atoms we'll call it Force3)
-struct ForceKey
+template <class T>
+struct ForceData
 {
-    ForceKey(NvU32 uAtom1, NvU32 uAtom2)
+    rtvector<MyUnits<T>, 3> vForce;
+    T fNormalizedForce;
+};
+template <class T>
+struct Force
+{
+    Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
+
+    Force(NvU32 uAtom1, NvU32 uAtom2) : m_collisionDetected(0), m_isCovalentBond(0)
     {
         if (uAtom1 < uAtom2) // sort indices to avoid duplicate forces 1<->2 and 2<->1
         {
@@ -207,40 +215,15 @@ struct ForceKey
         m_uAtom2 = uAtom1;
         nvAssert(m_uAtom1 == uAtom2 && m_uAtom2 == uAtom1 && m_uAtom1 != m_uAtom2);
     }
-    bool operator ==(const ForceKey& other) const { return m_uAtom1 == other.m_uAtom1 && m_uAtom2 == other.m_uAtom2; }
     NvU32 getAtom1Index() const { return m_uAtom1; }
     NvU32 getAtom2Index() const { return m_uAtom2; }
 #if ASSERT_ONLY_CODE
     template <class T>
-    bool dbgAreIndicesSane(const Atom<T> &atom1, const Atom<T> &atom2)
+    bool dbgAreIndicesSane(const Atom<T>& atom1, const Atom<T>& atom2)
     {
         return &atom2 - &atom1 == m_uAtom2 - m_uAtom1;
     }
 #endif
-private:
-    NvU32 m_uAtom1 : 16;
-    NvU32 m_uAtom2 : 16;
-};
-// custom specialization of std::hash can be injected in namespace std
-template<>
-struct std::hash<ForceKey>
-{
-    std::size_t operator()(ForceKey const& s) const noexcept
-    {
-        static_assert(sizeof(s) == sizeof(NvU32), "error: wrong ForceKey size");
-        return std::hash<NvU32>{}((NvU32&)s);
-    }
-};
-template <class T>
-struct ForceData
-{
-    rtvector<MyUnits<T>, 3> vForce;
-    T fNormalizedForce;
-};
-template <class T>
-struct Force
-{
-    Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
 
     // returns true if there is a force, false if the force is 0
     template <class WRAPPER>
@@ -261,9 +244,9 @@ struct Force
     }
     // returns true if force is now zero, returns false otherwise
     template <class WRAPPER>
-    bool dissociateWeakBond(ForceKey forceKey, Atom<T> &atom1, Atom<T> &atom2, const WRAPPER &w)
+    bool dissociateWeakBond(Atom<T> &atom1, Atom<T> &atom2, const WRAPPER &w)
     {
-        nvAssert(forceKey.dbgAreIndicesSane(atom1, atom2));
+        nvAssert(dbgAreIndicesSane(atom1, atom2));
         rtvector<MyUnits<T>, 3> vDir = w.computeDir(atom1, atom2);
         auto fDistSqr = dot(vDir, vDir);
 
@@ -279,8 +262,8 @@ struct Force
             // if this force is not yet covalent bond and atoms have vacant orbitals - we make this force a covalent bond here
             if (fDistSqr < bond.getDissocLengthSqr() && atom1.getNBonds() < atom1.getValence() && atom2.getNBonds() < atom2.getValence())
             {
-                atom1.addBond(forceKey.getAtom2Index());
-                atom2.addBond(forceKey.getAtom1Index());
+                atom1.addBond(getAtom2Index());
+                atom2.addBond(getAtom1Index());
                 setCovalentBond();
             }
         }
@@ -290,8 +273,8 @@ struct Force
             if (isCovalentBond() && fDistSqr >= bond.getDissocLengthSqr())
             {
                 dropCovalentBond();
-                atom1.removeBond(forceKey.getAtom2Index());
-                atom2.removeBond(forceKey.getAtom1Index());
+                atom1.removeBond(getAtom2Index());
+                atom2.removeBond(getAtom1Index());
             }
         }
 
@@ -309,4 +292,6 @@ private:
 
     NvU32 m_collisionDetected : 1; // collision detected during time step
     NvU32 m_isCovalentBond : 1;
+    NvU32 m_uAtom1 : 15;
+    NvU32 m_uAtom2 : 15;
 };

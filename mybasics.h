@@ -4,6 +4,8 @@ typedef unsigned short NvU16;
 typedef unsigned int NvU32;
 typedef unsigned long long NvU64;
 
+const NvU32 INVALID_UINT32 = 0xffffffff;
+
 #ifdef NDEBUG
 #define ASSERT_ONLY_CODE 0
 #define nvAssert(x)
