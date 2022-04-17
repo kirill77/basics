@@ -86,9 +86,8 @@ template <class T>
 struct LinkedForce : public Force<T>
 {
     LinkedForce() { }
-    LinkedForce(NvU32 uAtom1, NvU32 uAtom2) : Force<T>(uAtom1, uAtom2) { }
-    bool isUsed() const { return m_prev != UNUSED_FORCE; } // unused forces are single-linked
-    NvU32 m_next = INVALID_UINT32, m_prev = UNUSED_FORCE;
+    LinkedForce(NvU32 uAtom1, NvU32 uAtom2) : Force<T>(uAtom1, uAtom2), m_isUsed(true) { }
+    bool m_isUsed = false;
 };
 
 template <class T>
@@ -115,36 +114,37 @@ struct ForceMap
         bindAtomsInternal(uAtom2, uAtom1, uNewForce);
         return uNewForce;
     }
-    NvU32 findSmallestForceIndex() const
+    NvU32 findFirstForceIndex() const
     {
         for (NvU32 u = 0; u < m_forces.size(); ++u)
         {
-            if (m_forces[u].isUsed()) return u;
+            if (m_forces[u].m_isUsed) return u;
         }
         return INVALID_UINT32;
     }
-    NvU32 findLargerForceIndex(NvU32 u) const
+    NvU32 findNextForceIndex(NvU32 u) const
     {
         for (++u; u < m_forces.size(); ++u)
         {
-            if (m_forces[u].isUsed()) return u;
+            if (m_forces[u].m_isUsed) return u;
         }
         return INVALID_UINT32;
     }
-    Force<T>& accessForceByIndex(NvU32 u) { nvAssert(m_forces[u].isUsed()); return m_forces[u]; }
-    const Force<T>& accessForceByIndex(NvU32 u) const { nvAssert(m_forces[u].isUsed()); return m_forces[u]; }
+    Force<T>& accessForceByIndex(NvU32 u) { nvAssert(m_forces[u].m_isUsed); return m_forces[u]; }
+    const Force<T>& accessForceByIndex(NvU32 u) const { nvAssert(m_forces[u].m_isUsed); return m_forces[u]; }
     NvU32 dissociateForce(NvU32 uDissociatedForce)
     {
-        NvU32 uNextUsedForce = unlinkFromUsedForces(uDissociatedForce);
-        linkIntoUnusedForces(uDissociatedForce);
-        return uNextUsedForce;
+        nvAssert(m_forces[uDissociatedForce].m_isUsed);
+        m_unusedForceIndices.push_back(uDissociatedForce);
+        m_forces[uDissociatedForce].m_isUsed = false;
+        return findNextForceIndex(uDissociatedForce);
     }
 
     struct ConstIt
     {
         ConstIt(NvU32 u, const ForceMap<T>& forces) : m_u(u), m_forces(forces) { }
         bool operator != (const ConstIt& other) { return m_u != other.m_u; }
-        void operator ++() { m_u = m_forces.findLargerForceIndex(m_u); }
+        void operator ++() { m_u = m_forces.findNextForceIndex(m_u); }
         const Force<T> &operator *() const { return m_forces.accessForceByIndex(m_u); }
     private:
         NvU32 m_u;
@@ -152,7 +152,7 @@ struct ForceMap
     };
     ConstIt begin() const
     {
-        return ConstIt(findSmallestForceIndex(), *this);
+        return ConstIt(findFirstForceIndex(), *this);
     }
     ConstIt end() const
     {
@@ -160,62 +160,21 @@ struct ForceMap
     }
 
 private:
-    void linkIntoUnusedForces(NvU32 u)
-    {
-        nvAssert(!m_forces[u].isUsed());
-        m_forces[u].m_next = m_uFirstUnusedForce;
-        m_uFirstUnusedForce = u;
-    }
-    NvU32 unlinkFromUsedForces(NvU32 u)
-    {
-        auto& f = m_forces[u];
-        nvAssert(f.isUsed());
-        NvU32 uNextUsed = f.m_next;
-        if (m_uFirstUsedForce == u)
-        {
-            m_uFirstUsedForce = uNextUsed;
-        }
-        else
-        {
-            m_forces[f.m_prev].m_next = uNextUsed;
-        }
-        if (uNextUsed != INVALID_UINT32)
-        {
-            m_forces[uNextUsed].m_prev = f.m_prev;
-        }
-        f.m_prev = UNUSED_FORCE;
-        f.m_next = INVALID_UINT32;
-        nvAssert(!f.isUsed());
-        return uNextUsed;
-    }
-    void linkIntoUsedForces(NvU32 u)
-    {
-        auto& f = m_forces[u];
-        nvAssert(!f.isUsed());
-        f.m_prev = INVALID_UINT32;
-        f.m_next = m_uFirstUsedForce;
-        if (m_uFirstUsedForce != INVALID_UINT32)
-        {
-            m_forces[m_uFirstUsedForce].m_prev = u;
-        }
-        m_uFirstUsedForce = u;
-        nvAssert(f.isUsed());
-    }
     NvU32 allocateNewForce(NvU32 uAtom1, NvU32 uAtom2)
     {
         NvU32 uForce = 0;
-        if (m_uFirstUnusedForce != INVALID_UINT32)
+        if (m_unusedForceIndices.size())
         {
-            uForce = m_uFirstUnusedForce;
-            m_uFirstUnusedForce = m_forces[m_uFirstUnusedForce].m_next;
+            uForce = *m_unusedForceIndices.rbegin();
+            m_unusedForceIndices.pop_back();
         }
         else
         {
             uForce = (NvU32)m_forces.size();
-            m_forces.push_back(LinkedForce<T>(uAtom1, uAtom2));
+            m_forces.resize(m_forces.size() + 1);
         }
-        linkIntoUsedForces(uForce);
-        nvAssert(m_forces[uForce].isUsed());
+        m_forces[uForce] = LinkedForce<T>(uAtom1, uAtom2);
+        nvAssert(m_forces[uForce].m_isUsed);
         return uForce;
     }
     void bindAtomsInternal(NvU32 uAtom1, NvU32 uAtom2, NvU32 uForce)
@@ -226,9 +185,9 @@ private:
             __debugbreak(); // this means we don't have enough index slots
         }
         m_atomForceIndices[uAtom1].setSlot(uSlot, uAtom2, uForce);
-        nvAssert(m_forces[uForce].isUsed());
+        nvAssert(m_forces[uForce].m_isUsed);
     }
-    NvU32 m_uFirstUnusedForce = INVALID_UINT32, m_uFirstUsedForce = INVALID_UINT32;
+    std::vector<NvU32> m_unusedForceIndices;
     std::vector<LinkedForce<T>> m_forces;
     std::vector<ForceBinding<16>> m_atomForceIndices;
 };
