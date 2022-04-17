@@ -202,26 +202,18 @@ struct Force
 {
     Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
 
-    Force(NvU32 uAtom1, NvU32 uAtom2) : m_collisionDetected(0), m_isCovalentBond(0)
+    Force(NvU32 uAtom1, NvU32 uAtom2) : m_uAtom1(uAtom1), m_uAtom2(uAtom2), m_collisionDetected(0), m_isCovalentBond(0)
     {
-        if (uAtom1 < uAtom2) // sort indices to avoid duplicate forces 1<->2 and 2<->1
-        {
-            m_uAtom1 = uAtom1;
-            m_uAtom2 = uAtom2;
-            nvAssert(m_uAtom1 == uAtom1 && m_uAtom2 == uAtom2 && m_uAtom1 != m_uAtom2);
-            return;
-        }
-        m_uAtom1 = uAtom2;
-        m_uAtom2 = uAtom1;
-        nvAssert(m_uAtom1 == uAtom2 && m_uAtom2 == uAtom1 && m_uAtom1 != m_uAtom2);
+        nvAssert(m_uAtom1 != m_uAtom2 || !isValid());
     }
+    bool isValid() const { return m_uAtom1 != INVALID_UINT32; }
     NvU32 getAtom1Index() const { return m_uAtom1; }
     NvU32 getAtom2Index() const { return m_uAtom2; }
 #if ASSERT_ONLY_CODE
     template <class T>
     bool dbgAreIndicesSane(const Atom<T>& atom1, const Atom<T>& atom2)
     {
-        return &atom2 - &atom1 == m_uAtom2 - m_uAtom1;
+        return &atom2 - &atom1 == (int)m_uAtom2 - (int)m_uAtom1;
     }
 #endif
 
@@ -292,6 +284,5 @@ private:
 
     NvU32 m_collisionDetected : 1; // collision detected during time step
     NvU32 m_isCovalentBond : 1;
-    NvU32 m_uAtom1 : 15;
-    NvU32 m_uAtom2 : 15;
+    NvU32 m_uAtom1 = INVALID_UINT32, m_uAtom2 = INVALID_UINT32;
 };

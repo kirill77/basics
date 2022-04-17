@@ -80,16 +80,6 @@ private:
     SSEForceBinding m_bindings[N];
 };
 
-static NvU32 UNUSED_FORCE = 0x7fffffff;
-
-template <class T>
-struct LinkedForce : public Force<T>
-{
-    LinkedForce() { }
-    LinkedForce(NvU32 uAtom1, NvU32 uAtom2) : Force<T>(uAtom1, uAtom2), m_isUsed(true) { }
-    bool m_isUsed = false;
-};
-
 template <class T>
 struct ForceMap
 {
@@ -118,7 +108,7 @@ struct ForceMap
     {
         for (NvU32 u = 0; u < m_forces.size(); ++u)
         {
-            if (m_forces[u].m_isUsed) return u;
+            if (m_forces[u].isValid()) return u;
         }
         return INVALID_UINT32;
     }
@@ -126,17 +116,18 @@ struct ForceMap
     {
         for (++u; u < m_forces.size(); ++u)
         {
-            if (m_forces[u].m_isUsed) return u;
+            if (m_forces[u].isValid()) return u;
         }
         return INVALID_UINT32;
     }
-    Force<T>& accessForceByIndex(NvU32 u) { nvAssert(m_forces[u].m_isUsed); return m_forces[u]; }
-    const Force<T>& accessForceByIndex(NvU32 u) const { nvAssert(m_forces[u].m_isUsed); return m_forces[u]; }
+    Force<T>& accessForceByIndex(NvU32 u) { nvAssert(m_forces[u].isValid()); return m_forces[u]; }
+    const Force<T>& accessForceByIndex(NvU32 u) const { nvAssert(m_forces[u].isValid()); return m_forces[u]; }
     NvU32 dissociateForce(NvU32 uDissociatedForce)
     {
-        nvAssert(m_forces[uDissociatedForce].m_isUsed);
-        m_unusedForceIndices.push_back(uDissociatedForce);
-        m_forces[uDissociatedForce].m_isUsed = false;
+        nvAssert(m_forces[uDissociatedForce].isValid());
+        m_forces[uDissociatedForce] = Force<T>(INVALID_UINT32, m_firstUnusedForce);
+        m_firstUnusedForce = uDissociatedForce;
+        nvAssert(!m_forces[uDissociatedForce].isValid());
         return findNextForceIndex(uDissociatedForce);
     }
 
@@ -163,18 +154,18 @@ private:
     NvU32 allocateNewForce(NvU32 uAtom1, NvU32 uAtom2)
     {
         NvU32 uForce = 0;
-        if (m_unusedForceIndices.size())
+        if (m_firstUnusedForce != INVALID_UINT32)
         {
-            uForce = *m_unusedForceIndices.rbegin();
-            m_unusedForceIndices.pop_back();
+            uForce = m_firstUnusedForce;
+            m_firstUnusedForce = m_forces[m_firstUnusedForce].getAtom2Index();
         }
         else
         {
             uForce = (NvU32)m_forces.size();
             m_forces.resize(m_forces.size() + 1);
         }
-        m_forces[uForce] = LinkedForce<T>(uAtom1, uAtom2);
-        nvAssert(m_forces[uForce].m_isUsed);
+        m_forces[uForce] = Force<T>(uAtom1, uAtom2);
+        nvAssert(m_forces[uForce].isValid());
         return uForce;
     }
     void bindAtomsInternal(NvU32 uAtom1, NvU32 uAtom2, NvU32 uForce)
@@ -185,9 +176,9 @@ private:
             __debugbreak(); // this means we don't have enough index slots
         }
         m_atomForceIndices[uAtom1].setSlot(uSlot, uAtom2, uForce);
-        nvAssert(m_forces[uForce].m_isUsed);
+        nvAssert(m_forces[uForce].isValid());
     }
-    std::vector<NvU32> m_unusedForceIndices;
-    std::vector<LinkedForce<T>> m_forces;
+    NvU32 m_firstUnusedForce = INVALID_UINT32;
+    std::vector<Force<T>> m_forces;
     std::vector<ForceBinding<16>> m_atomForceIndices;
 };
