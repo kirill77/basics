@@ -87,7 +87,7 @@ struct ForceMap
     {
         m_atomForceIndices.resize(nAtoms);
     }
-    NvU32 getNForces() const { return (NvU32)m_forces.size(); }
+    NvU32 size() const { return (NvU32)m_forces.size(); }
     NvU32 createForce(NvU32 uAtom1, NvU32 uAtom2)
     {
         // if such force already exists - just return its index
@@ -104,7 +104,7 @@ struct ForceMap
         bindAtomsInternal(uAtom2, uAtom1, uNewForce);
         return uNewForce;
     }
-    NvU32 findFirstForceIndex() const
+    NvU32 findFirstValidIndex() const
     {
         for (NvU32 u = 0; u < m_forces.size(); ++u)
         {
@@ -112,7 +112,7 @@ struct ForceMap
         }
         return INVALID_UINT32;
     }
-    NvU32 findNextForceIndex(NvU32 u) const
+    NvU32 findNextValidIndex(NvU32 u) const
     {
         for (++u; u < m_forces.size(); ++u)
         {
@@ -128,26 +128,7 @@ struct ForceMap
         m_forces[uDissociatedForce] = Force<T>(INVALID_UINT32, m_firstUnusedForce);
         m_firstUnusedForce = uDissociatedForce;
         nvAssert(!m_forces[uDissociatedForce].isValid());
-        return findNextForceIndex(uDissociatedForce);
-    }
-
-    struct ConstIt
-    {
-        ConstIt(NvU32 u, const ForceMap<T>& forces) : m_u(u), m_forces(forces) { }
-        bool operator != (const ConstIt& other) { return m_u != other.m_u; }
-        void operator ++() { m_u = m_forces.findNextForceIndex(m_u); }
-        const Force<T> &operator *() const { return m_forces.accessForceByIndex(m_u); }
-    private:
-        NvU32 m_u;
-        const ForceMap<T>& m_forces;
-    };
-    ConstIt begin() const
-    {
-        return ConstIt(findFirstForceIndex(), *this);
-    }
-    ConstIt end() const
-    {
-        return ConstIt(INVALID_UINT32, *this);
+        return findNextValidIndex(uDissociatedForce);
     }
 
 private:
