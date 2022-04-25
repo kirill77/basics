@@ -1,5 +1,6 @@
 #pragma once
 
+typedef unsigned char NvU8;
 typedef unsigned short NvU16;
 typedef unsigned int NvU32;
 typedef unsigned long long NvU64;
