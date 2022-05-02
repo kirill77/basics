@@ -91,6 +91,8 @@ private:
 // SparseHierarchy is used for multi-layer hierarchical simulation. The very first layer contains all elements.
 // As the simulation progresses - some elements need to be simulated in more detail than the others. This class
 // allows efficient movement of elements between layers.
+// IMPORTANT: internally the first and the last elements of each layer are sentinels. It greatly simplifies the
+// logic because otherwise layer being empty is a corner case that has to be taken into account in many places
 struct SparseHierarchy
 {
     void init(NvU32 nElements)
@@ -99,81 +101,59 @@ struct SparseHierarchy
         // initialize layers
         m_nLayers = 1;
         // initialize elements
-        if (m_pElements.size() != nElements)
+        if (m_nOrigElements != nElements)
         {
-            m_pLayers[0].m_uFirstEl = 0;
-            m_pLayers[0].m_uLastEl = nElements - 1;
-            m_pElements.resize(nElements);
-            m_pElements.begin()->m_uPrev = INVALID_UINT32;
-            m_pElements.rbegin()->m_uNext = INVALID_UINT32;
-            for (NvU32 u = 1; u < nElements; ++u)
+            m_nOrigElements = nElements;
+            m_pElements.resize(nElements + m_pLayers.size() * 2);
+
+            m_pElements[_firstLayerEl(0)].m_uNext = 0;
+            m_pElements[0].m_uPrev = _firstLayerEl(0);
+
+            m_pElements[_lastLayerEl(0)].m_uPrev = m_nOrigElements - 1;
+            m_pElements[m_nOrigElements - 1].m_uNext = _lastLayerEl(0);
+
+            for (NvU32 u = 1; u < m_nOrigElements; ++u)
             {
                 m_pElements[u - 1].m_uNext = u;
                 m_pElements[u].m_uPrev = u - 1;
             }
         }
-        nvAssert(dbgIsLayerSane(0));
     }
     bool hasElements(NvU32 uLayer) const
     {
-        nvAssert(uLayer < m_nLayers);
-        return m_pLayers[uLayer].m_uFirstEl != INVALID_UINT32;
+        return m_pElements[_firstLayerEl(uLayer)].m_uNext < m_nOrigElements;
     }
     bool hasElement(NvU32 uLayer, NvU32 uElement) const
     {
         nvAssert(uLayer < m_nLayers);
         return m_pElements[uElement].m_maxLayerId >= m_pLayers[uLayer].m_id;
     }
-    void moveToMostDetailedLayer(NvU32 uMostDetailedLayer, NvU32 uElement)
+    void moveToLayer(NvU32 uLayer, NvU32 uElement)
     {
-        nvAssert(uMostDetailedLayer == m_nLayers - 1);
-        if (hasElement(uMostDetailedLayer, uElement)) return;
-        m_pElements[uElement].m_maxLayerId = m_pLayers[uMostDetailedLayer].m_id;
-        NvU32 uPrevLayer = uMostDetailedLayer - 1;
-        nvAssert(dbgIsLayerSane(uMostDetailedLayer));
-        nvAssert(dbgIsLayerSane(uPrevLayer));
-        NvU32 uPrevEl = m_pElements[uElement].m_uPrev;
-        NvU32 uNextEl = m_pElements[uElement].m_uNext;
-        // unlinking
-        if (uPrevEl == INVALID_UINT32)
-        {
-            m_pLayers[uPrevLayer].m_uFirstEl = uNextEl;
-        }
-        else
-        {
-            m_pElements[uPrevEl].m_uNext = uNextEl;
-            m_pElements[uElement].m_uPrev = INVALID_UINT32;
-        }
-        if (uNextEl == INVALID_UINT32)
-        {
-            m_pLayers[uPrevLayer].m_uLastEl = uPrevEl;
-        }
-        else
-        {
-            m_pElements[uNextEl].m_uPrev = uPrevEl;
-        }
-        // linking
-        NvU32 uFirstEl = m_pLayers[uMostDetailedLayer].m_uFirstEl;
-        m_pLayers[uMostDetailedLayer].m_uFirstEl = uElement;
-        m_pElements[uElement].m_uNext = uFirstEl;
-        if (uFirstEl != INVALID_UINT32)
-        {
-            m_pElements[uFirstEl].m_uPrev = uElement;
-        }
-        if (m_pLayers[uMostDetailedLayer].m_uLastEl == INVALID_UINT32)
-        {
-            m_pLayers[uMostDetailedLayer].m_uLastEl = uElement;
-        }
-        nvAssert(dbgIsLayerSane(uMostDetailedLayer));
-        nvAssert(dbgIsLayerSane(uPrevLayer));
+        if (hasElement(uLayer, uElement)) return;
+        auto& el = m_pElements[uElement];
+        el.m_maxLayerId = m_pLayers[uLayer].m_id;
+        // unlinking from whatever layer the element is currently on
+        m_pElements[el.m_uPrev].m_uNext = el.m_uNext;
+        m_pElements[el.m_uNext].m_uPrev = el.m_uPrev;
+        // linking to uLayer
+        NvU32 uEl0 = _firstLayerEl(uLayer);
+        auto& el0 = m_pElements[uEl0];
+        NvU32 uEl2 = el0.m_uNext;
+        el0.m_uNext = uElement;
+        el.m_uPrev = uEl0;
+        el.m_uNext = uEl2;
+        m_pElements[uEl2].m_uPrev = uElement;
     }
     void notifyLayerCreated(NvU32 uLayer)
     {
         nvAssert(uLayer == m_nLayers && m_nLayers < m_pLayers.size()); // each time must increase layer index by one
         m_nLayers = uLayer + 1;
         m_pLayers[uLayer].m_id = ++m_lastLayerId;
-        m_pLayers[uLayer].m_uFirstEl = INVALID_UINT32;
-        m_pLayers[uLayer].m_uLastEl = INVALID_UINT32;
+        NvU32 uEl0 = _firstLayerEl(uLayer);
+        NvU32 uEl1 = _lastLayerEl(uLayer);
+        m_pElements[uEl0].m_uNext = uEl1;
+        m_pElements[uEl1].m_uPrev = uEl0;
     }
     void notifyLayerDestroyed(NvU32 uLayer)
     {
@@ -187,65 +167,52 @@ struct SparseHierarchy
         {
             // since this layer is destroyed - all its elements are moved to the previous layer
             NvU32 uPrevLayer = uLayer - 1;
-            if (hasElements(uPrevLayer))
+            if (hasElements(uLayer))
             {
-                // here we're linking two linked lists together (constant-time)
-                m_pElements[m_pLayers[uLayer].m_uFirstEl].m_uPrev = m_pLayers[uPrevLayer].m_uLastEl;
-                m_pElements[m_pLayers[uPrevLayer].m_uLastEl].m_uNext = m_pLayers[uLayer].m_uFirstEl;
-                m_pLayers[uPrevLayer].m_uLastEl = m_pLayers[uLayer].m_uLastEl;
-            }
-            else
-            {
-                m_pLayers[uPrevLayer].m_uFirstEl = m_pLayers[uLayer].m_uFirstEl;
-                m_pLayers[uPrevLayer].m_uLastEl = m_pLayers[uLayer].m_uLastEl;
+                NvU32 uEl0 = _firstLayerEl(uPrevLayer);
+                NvU32 uEl1 = m_pElements[_firstLayerEl(uLayer)].m_uNext;
+                NvU32 uEl2 = m_pElements[_lastLayerEl(uLayer)].m_uPrev;
+                NvU32 uEl3 = m_pElements[uEl0].m_uNext;
+
+                m_pElements[uEl0].m_uNext = uEl1;
+                m_pElements[uEl1].m_uPrev = uEl0;
+                m_pElements[uEl2].m_uNext = uEl3;
+                m_pElements[uEl3].m_uPrev = uEl2;
             }
         }
         m_nLayers = uLayer;
-        nvAssert(dbgIsLayerSane(uLayer - 1));
     }
     NvU32 getFirstLayerElement(NvU32 uLayer) const
     {
-        nvAssert(uLayer < m_nLayers);
-        return m_pLayers[uLayer].m_uFirstEl;
+        // first element is a sentinel - so return the one after that
+        return m_pElements[_firstLayerEl(uLayer)].m_uNext;
     }
     NvU32 getNextElement(NvU32 uElement) const
     {
         return m_pElements[uElement].m_uNext;
     }
 private:
-#if ASSERT_ONLY_CODE
-    bool dbgIsLayerSane(NvU32 uLayer)
+    NvU32 _firstLayerEl(NvU32 uLayer) const
     {
-        if ((m_pLayers[uLayer].m_uFirstEl == INVALID_UINT32) != (m_pLayers[uLayer].m_uLastEl == INVALID_UINT32))
-        {
-            nvAssert(false);
-            return false;
-        }
-        NvU32 uFirst = m_pLayers[uLayer].m_uFirstEl;
-        if (uFirst != INVALID_UINT32 && m_pElements[uFirst].m_uPrev != INVALID_UINT32)
-        {
-            nvAssert(false);
-            return false;
-        }
-        NvU32 uLast = m_pLayers[uLayer].m_uLastEl;
-        if (uLast != INVALID_UINT32 && m_pElements[uLast].m_uNext != INVALID_UINT32)
-        {
-            nvAssert(false);
-            return false;
-        }
-        return true;
+        nvAssert(uLayer < m_nLayers);
+        return m_nOrigElements + uLayer * 2;
     }
-#endif
+    NvU32 _lastLayerEl(NvU32 uLayer) const
+    {
+        nvAssert(uLayer < m_nLayers);
+        return m_nOrigElements + uLayer * 2 + 1;
+    }
     NvU32 m_nLayers = 0, m_lastLayerId = 0;
     struct Element
     {
         NvU32 m_maxLayerId = 0; // used to quickly determine if given element is present at the given layer
-        NvU32 m_uPrev, m_uNext; // elements valid for the layer are linked
+        NvU32 m_uPrev = INVALID_UINT32, m_uNext = INVALID_UINT32; // elements valid for the layer are linked
     };
     std::vector<Element> m_pElements;
+    NvU32 m_nOrigElements = 0;
     struct Layer
     {
-        NvU32 m_id = 0, m_uFirstEl, m_uLastEl;
+        NvU32 m_id = 0;
     };
     std::array<Layer, 32> m_pLayers;
 };
