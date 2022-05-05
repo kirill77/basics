@@ -95,28 +95,33 @@ private:
 // logic because otherwise layer being empty is a corner case that has to be taken into account in many places
 struct SparseHierarchy
 {
-    void init(NvU32 nElements)
+    void init(NvU32 nElements, NvU32 uGroundLayer)
     {
         nvAssert(nElements > 0);
-        // initialize layers
-        m_nLayers = 1;
-        // initialize elements
-        if (m_nOrigElements != nElements)
+        if (m_nOrigElements != nElements) // size has changed? reinitialize
         {
             m_nOrigElements = nElements;
             m_pElements.resize(nElements + m_pLayers.size() * 2);
 
-            m_pElements[_firstLayerEl(0)].m_uNext = 0;
-            m_pElements[0].m_uPrev = _firstLayerEl(0);
+            m_nLayers = 0;
+            for (NvU32 u = 0; u <= uGroundLayer; ++u)
+            {
+                notifyLayerCreated(u);
+            }
 
-            m_pElements[_lastLayerEl(0)].m_uPrev = m_nOrigElements - 1;
-            m_pElements[m_nOrigElements - 1].m_uNext = _lastLayerEl(0);
-
+            // link all elements into list
             for (NvU32 u = 1; u < m_nOrigElements; ++u)
             {
                 m_pElements[u - 1].m_uNext = u;
                 m_pElements[u].m_uPrev = u - 1;
+                m_pElements[u].m_maxLayerId = m_pLayers[uGroundLayer].m_id;
             }
+
+            // put all elements onto ground layer
+            m_pElements[_firstLayerEl(uGroundLayer)].m_uNext = 0;
+            m_pElements[0].m_uPrev = _firstLayerEl(uGroundLayer);
+            m_pElements[_lastLayerEl(uGroundLayer)].m_uPrev = m_nOrigElements - 1;
+            m_pElements[m_nOrigElements - 1].m_uNext = _lastLayerEl(uGroundLayer);
         }
     }
     bool hasElements(NvU32 uLayer) const
