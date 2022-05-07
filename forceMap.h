@@ -87,6 +87,7 @@ struct ForceMap
     {
         m_atomForceIndices.resize(nAtoms);
     }
+    bool isValid(NvU32 uForce) const { return m_forces[uForce].isValid(); }
     NvU32 size() const { return (NvU32)m_forces.size(); }
     NvU32 createForce(NvU32 uAtom1, NvU32 uAtom2)
     {
@@ -104,31 +105,23 @@ struct ForceMap
         bindAtomsInternal(uAtom2, uAtom1, uNewForce);
         return uNewForce;
     }
-    NvU32 findFirstValidIndex() const
+    NvU32 getFirstInvalidIndex() const
     {
-        for (NvU32 u = 0; u < m_forces.size(); ++u)
-        {
-            if (m_forces[u].isValid()) return u;
-        }
-        return INVALID_UINT32;
+        return m_firstUnusedForce;
     }
-    NvU32 findNextValidIndex(NvU32 u) const
+    NvU32 getNextInvalidIndex(NvU32 u) const
     {
-        for (++u; u < m_forces.size(); ++u)
-        {
-            if (m_forces[u].isValid()) return u;
-        }
-        return INVALID_UINT32;
+        nvAssert(!isValid(u));
+        return m_forces[u].getAtom2Index();
     }
     Force<T>& accessForceByIndex(NvU32 u) { nvAssert(m_forces[u].isValid()); return m_forces[u]; }
     const Force<T>& accessForceByIndex(NvU32 u) const { nvAssert(m_forces[u].isValid()); return m_forces[u]; }
-    NvU32 dissociateForce(NvU32 uDissociatedForce)
+    void notifyForceDissociated(NvU32 uDissociatedForce)
     {
         nvAssert(m_forces[uDissociatedForce].isValid());
         m_forces[uDissociatedForce] = Force<T>(INVALID_UINT32, m_firstUnusedForce);
         m_firstUnusedForce = uDissociatedForce;
         nvAssert(!m_forces[uDissociatedForce].isValid());
-        return findNextValidIndex(uDissociatedForce);
     }
 
 private:
