@@ -6,26 +6,24 @@
 #include "mybasics.h"
 #include "bonds.h"
 
-// this struct is per atom. it stores 4 connections to other atoms
+// this struct is per atom. it stores 8 connections to other atoms
 struct SSEForceBinding
 {
-    SSEForceBinding() : m_uOtherAtoms(_mm_set1_epi32(INVALID_UINT32)), m_uForces(_mm_set1_epi32(INVALID_UINT32)) { }
+    SSEForceBinding() :
+        m_uOtherAtomsHi(_mm_set1_epi32(INVALID_UINT32)), m_uOtherAtomsLo(_mm_set1_epi32(INVALID_UINT32)),
+        m_uForcesHi(_mm_set1_epi32(INVALID_UINT32)), m_uForcesLo(_mm_set1_epi32(INVALID_UINT32))
+    { }
 
-    // find a slot with specified other atom in it (INVALID_UINT32 corresponds to an empty slots)
+    // find a slot with the specified other atom in it (INVALID_UINT32 corresponds to empty slots)
     bool findBoundAtom(NvU32 uOtherAtom, NvU32& uSlot)
     {
-        NvU32 equalMask = _mm_movemask_epi8(_mm_cmpeq_epi32(m_uOtherAtoms, _mm_set1_epi32(uOtherAtom)));
+        NvU32 equalMask = _mm_movemask_epi8(_mm_and_si128(
+            _mm_cmpeq_epi16(m_uOtherAtomsHi, _mm_set1_epi16(uOtherAtom >> 16)),
+            _mm_cmpeq_epi16(m_uOtherAtomsLo, _mm_set1_epi16(uOtherAtom & 0xffff))));
         bool isFound = (equalMask != 0);
         if (isFound)
         {
-            if (equalMask & 0x11)
-            {
-                uSlot = (equalMask & 0x001) ? 0 : 1;
-            }
-            else
-            {
-                uSlot = (equalMask & 0x100) ? 2 : 3;
-            }
+            for (uSlot = 0; (equalMask & 1) == 0; ++uSlot, equalMask >>= 2);
         }
 #if 1 // can be used to check that the slot logic above is correct
         NvU32 dbgSlotIndex = 0;
@@ -33,47 +31,54 @@ struct SSEForceBinding
 #endif
         return isFound;
     }
-    NvU32 getForceIndex(NvU32 uSlot) const { nvAssert(uSlot < 4); return m_uForces.m128i_u32[uSlot]; }
+    NvU32 getForceIndex(NvU32 uSlot) const
+    {
+        return (m_uForcesLo.m128i_u16[uSlot] & 0xffff) | (m_uForcesHi.m128i_u16[uSlot] << 16);
+    }
     void setSlot(NvU32 uSlot, NvU32 uOtherAtom, NvU32 uForce)
     {
-        nvAssert(uSlot < 4);
-        m_uOtherAtoms.m128i_u32[uSlot] = uOtherAtom;
-        m_uForces.m128i_u32[uSlot] = uForce;
+        nvAssert(uSlot < 8);
+        m_uOtherAtomsHi.m128i_u16[uSlot] = uOtherAtom >> 16;
+        m_uForcesHi.m128i_u16[uSlot] = uForce >> 16;
+        m_uOtherAtomsLo.m128i_u16[uSlot] = uOtherAtom;
+        m_uForcesLo.m128i_u16[uSlot] = uForce;
     }
 
 private:
     bool dbgFindSlot(NvU32 uOtherAtom, NvU32& uOutSlot)
     {
-        for (uOutSlot = 0; uOutSlot < 4; ++uOutSlot)
+        for (uOutSlot = 0; uOutSlot < 8; ++uOutSlot)
         {
-            if (m_uOtherAtoms.m128i_u32[uOutSlot] == uOtherAtom) return true;
+            NvU32 uTmp = (m_uOtherAtomsLo.m128i_u16[uOutSlot] & 0xffff) | (m_uOtherAtomsHi.m128i_u16[uOutSlot] << 16);
+            if (uTmp == uOtherAtom) return true;
         }
         return false;
     }
-    __m128i m_uOtherAtoms; // connected atoms (INVALID_UINT32 means no connection)
-    __m128i m_uForces; // force indices corresponding to those connected atoms
+    __m128i m_uOtherAtomsHi;
+    __m128i m_uOtherAtomsLo;
+    __m128i m_uForcesHi;
+    __m128i m_uForcesLo;
 };
 template <NvU32 N>
 struct ForceBinding
 {
     // find a slot with specified other atom in it (INVALID_UINT32 corresponds to an empty slots)
-    bool findBoundAtom(NvU32 uOtherAtom, NvU32& uOutSlot)
+    SSEForceBinding *findBoundAtom(NvU32 uOtherAtom, NvU32& uOutSlot)
     {
         for (NvU32 u = 0; u < N; ++u)
         {
             if (m_bindings[u].findBoundAtom(uOtherAtom, uOutSlot))
             {
-                uOutSlot += u * 4;
-                return true;
+                return &m_bindings[u];
             }
         }
-        return false;
+        return nullptr;
     }
-    NvU32 getForceIndex(NvU32 uSlot) const { nvAssert(uSlot < 4 * N); return m_bindings[uSlot / 4].getForceIndex(uSlot & 3); }
+    NvU32 getForceIndex(NvU32 uSlot) const { nvAssert(uSlot < 8 * N); return m_bindings[uSlot / 8].getForceIndex(uSlot & 7); }
     void setSlot(NvU32 uSlot, NvU32 uOtherAtom, NvU32 uForce)
     {
-        nvAssert(uSlot < 4 * N);
-        m_bindings[uSlot / 4].setSlot(uSlot & 3, uOtherAtom, uForce);
+        nvAssert(uSlot < 8 * N);
+        m_bindings[uSlot / 8].setSlot(uSlot & 7, uOtherAtom, uForce);
     }
 
 private:
@@ -93,12 +98,13 @@ struct ForceMap
     {
         // if such force already exists - just return its index
         NvU32 uSlot1 = 0;
-        if (m_atomForceIndices[uAtom1].findBoundAtom(uAtom2, uSlot1))
+        SSEForceBinding* p1 = m_atomForceIndices[uAtom1].findBoundAtom(uAtom2, uSlot1);
+        if (p1)
         {
             NvU32 uSlot2 = 0;
-            nvAssert(m_atomForceIndices[uAtom2].findBoundAtom(uAtom1, uSlot2) &&
-                     m_atomForceIndices[uAtom1].getForceIndex(uSlot1) == m_atomForceIndices[uAtom2].getForceIndex(uSlot2)); // must be symmetric
-            return m_atomForceIndices[uAtom1].getForceIndex(uSlot1);
+            SSEForceBinding* p2 = m_atomForceIndices[uAtom2].findBoundAtom(uAtom1, uSlot2);
+            nvAssert(p2 && p1->getForceIndex(uSlot1) == p2->getForceIndex(uSlot2)); // must be symmetric
+            return p1->getForceIndex(uSlot1);
         }
         NvU32 uNewForce = allocateNewForce(uAtom1, uAtom2);
         bindAtomsInternal(uAtom1, uAtom2, uNewForce);
@@ -145,11 +151,12 @@ private:
     void bindAtomsInternal(NvU32 uAtom1, NvU32 uAtom2, NvU32 uForce)
     {
         NvU32 uSlot = 0;
-        if (!m_atomForceIndices[uAtom1].findBoundAtom(INVALID_UINT32, uSlot))
+        SSEForceBinding* p = m_atomForceIndices[uAtom1].findBoundAtom(INVALID_UINT32, uSlot);
+        if (!p)
         {
             __debugbreak(); // this means we don't have enough index slots
         }
-        m_atomForceIndices[uAtom1].setSlot(uSlot, uAtom2, uForce);
+        p->setSlot(uSlot, uAtom2, uForce);
         nvAssert(m_forces[uForce].isValid());
     }
     NvU32 m_firstUnusedForce = INVALID_UINT32;
