@@ -45,16 +45,6 @@ struct BondsDataBase
             // we need to compute sigma and epsilon to match fBondLength and fBondEnergy
             m_fSigma = fBondLength * pow(2, -1. / 6);
             m_fEpsilon = fBondEnergy;
-            // to avoid explosion of the simulation, we don't allow potential energy between particles to get larger than some ad-hoc value
-            MyUnits<T> fMaxAllowedEnergy = MyUnits<T>::kJperMole() * MAX_ALLOWED_ENERGY_KJ_PER_MOLE;
-            // solved in wolfram:
-            // fPow2 = fSigma * fSigma / (fDistSqr)
-            // fPow6 = fPow2 * fPow2 * fPow2
-            // fPotential := fEpsilon * 4 * (fPow6 *fPow6 - fPow6)
-            // Solve[fPotential==fMaxAllowedEnergy, fDistSqr]
-            m_fMinAllowedDistSqr = pow(pow(m_fSigma, 6.) * (sqrt(m_fEpsilon * (m_fEpsilon + fMaxAllowedEnergy)) - m_fEpsilon) / fMaxAllowedEnergy, 1. / 3) * pow(2., 1. / 3);
-            double fDbgRatio = sqrt(m_fMinAllowedDistSqr.m_value) / sqrt(m_fLengthSqr.m_value);
-            nvAssert(fDbgRatio > 0 && fDbgRatio < 0.86); // ad-hoc check - tuned to barely pass for 600 KJ per Mole and O=O bond
             // solved in wolfram:
             // fDistSqr = fDist*fDist
             // fSigma = fBondLength * 2 ^ (-1. / 6)
@@ -81,7 +71,6 @@ struct BondsDataBase
             nvAssert(m_fEpsilon > 0 && m_fSigma > 0);
             if (fDistSqr >= s_zeroForceDistSqr)
                 return false;
-            // fDistSqr = std::max(fDistSqr, m_fMinAllowedDistSqr);
             MyUnits<T> fPow2 = m_fSigma * m_fSigma / fDistSqr;
             MyUnits<T> fPow6 = fPow2 * fPow2 * fPow2;
             MyUnits<T> fPow12 = fPow6 * fPow6;
@@ -92,7 +81,7 @@ struct BondsDataBase
             return true;
         }
     private:
-        MyUnits<T> m_fLengthSqr, m_fSigma, m_fMinAllowedDistSqr, m_fEpsilon, m_fLength, m_fDissocLengthSqr, m_fExtremalForce;
+        MyUnits<T> m_fLengthSqr, m_fSigma, m_fEpsilon, m_fLength, m_fDissocLengthSqr, m_fExtremalForce;
 #if ASSERT_ONLY_CODE
         MyUnits<T> m_fDbgBondLength;
 #endif
