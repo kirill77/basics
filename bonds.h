@@ -66,7 +66,7 @@ struct BondsDataBase
         MyUnits<T> getEnergy() const { return m_fEpsilon; }
         MyUnits<T> getLength() const { return m_fLength; }
         MyUnits<T> getDissocLengthSqr() const { return m_fDissocLengthSqr; }
-        bool lennardJones(MyUnits<T> fDistSqr, LJ_Out& out) const
+        bool lennardJones(MyUnits<T> fDistSqr, LJ_Out& out, bool isCovalentBond = true) const
         {
             nvAssert(m_fEpsilon > 0 && m_fSigma > 0);
             if (fDistSqr >= s_zeroForceDistSqr)
@@ -74,6 +74,7 @@ struct BondsDataBase
             MyUnits<T> fPow2 = m_fSigma * m_fSigma / fDistSqr;
             MyUnits<T> fPow6 = fPow2 * fPow2 * fPow2;
             MyUnits<T> fPow12 = fPow6 * fPow6;
+            if (!isCovalentBond) fPow6 = MyUnits<T>(); // remove attractive term for non-covalent bonds
             out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
             out.fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
             out.fNormalizedForceTimesR = (out.fForceTimesR / m_fExtremalForce).m_value;
@@ -189,9 +190,9 @@ struct ForceData
 template <class T>
 struct Force
 {
-    Force() : m_collisionDetected(0), m_isCovalentBond(0) { }
+    Force() : m_isCovalentBond(0) { }
 
-    Force(NvU32 uAtom1, NvU32 uAtom2) : m_uAtom1(uAtom1), m_uAtom2(uAtom2), m_collisionDetected(0), m_isCovalentBond(0)
+    Force(NvU32 uAtom1, NvU32 uAtom2) : m_uAtom1(uAtom1), m_uAtom2(uAtom2), m_isCovalentBond(0)
     {
         nvAssert(m_uAtom1 != m_uAtom2 || !isValid());
     }
@@ -214,7 +215,7 @@ struct Force
         MyUnits<T> fDistSqr = dot(vDir, vDir);
         typename BondsDataBase<T>::LJ_Out out;
         auto& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
-        bool hasForce = eBond.lennardJones(fDistSqr, out);
+        bool hasForce = eBond.lennardJones(fDistSqr, out, m_isCovalentBond);
         if (hasForce)
         {
             outForceData.vForce = vDir * (out.fForceTimesR / fDistSqr);
@@ -238,6 +239,7 @@ struct Force
             return true;
         }
 
+#if 0
         if (!isCovalentBond())
         {
             // if this force is not yet covalent bond and atoms have vacant orbitals - we make this force a covalent bond here
@@ -258,20 +260,17 @@ struct Force
                 atom2.removeBond(getAtom1Index());
             }
         }
+#endif
 
         return false;
     }
 
     bool shouldDraw() const { return m_isCovalentBond; } // should we draw this?
-
-private:
     bool isCovalentBond() const { return m_isCovalentBond; }
     void setCovalentBond() { nvAssert(m_isCovalentBond == 0); m_isCovalentBond = 1; }
     void dropCovalentBond() { nvAssert(m_isCovalentBond == 1); m_isCovalentBond = 0; }
-    void notifyCollision() { m_collisionDetected = 1; }
-    bool hadCollision() const { return m_collisionDetected; }
 
-    NvU32 m_collisionDetected : 1; // collision detected during time step
+private:
     NvU32 m_isCovalentBond : 1;
     NvU32 m_uAtom1 = INVALID_UINT32, m_uAtom2 = INVALID_UINT32;
 };
