@@ -342,9 +342,9 @@ rtvector<T, 3> cross(rtvector<T, 3> const& a, rtvector<T, 3> const& b)
 {
     rtvector<T, 3> result =
     {
-        a.y * b.z - a.z * b.y,
-        a.z * b.x - a.x * b.z,
-        a.x * b.y - a.y * b.x,
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
     };
     return result;
 }

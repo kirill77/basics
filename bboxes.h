@@ -13,6 +13,11 @@ struct BBox3
         m_vMin = vmin(v, m_vMin);
         m_vMax = vmax(v, m_vMax);
     }
+    void include(const BBox3<T>& b)
+    {
+        m_vMin = vmin(b.m_vMin, m_vMin);
+        m_vMax = vmax(b.m_vMax, m_vMax);
+    }
     inline bool operator ==(const BBox3<T> &other) const { return all(m_vMin == other.m_vMin) && all(m_vMax == other.m_vMax); }
     bool includes(const rtvector<T, 3>& v) const { return all(v >= m_vMin) && all(v < m_vMax); }
     const rtvector<T, 3>& operator[](NvU32 u) const { nvAssert(u < 2); return (&m_vMin)[u]; }

@@ -112,12 +112,10 @@ struct ForceBindings
 
         SSEForceBinding& p = m_atomLists[u];
         p.setSlot(uSlot, INVALID_UINT32, INVALID_UINT32);
-        if (p.isEmpty()) // if slot got empty...
+        if (p.isEmpty() && u != uAtom1) // if u == uAtom1 - can't unlink because that slot always belongs to uAtom1
         {
-            if (uPrev != INVALID_UINT32)
-            {
-                m_uNext[uPrev] = m_uNext[u]; // ... remove it from the list where it has been before...
-            }
+            nvAssert(uPrev != INVALID_UINT32);
+            m_uNext[uPrev] = m_uNext[u]; // remove it from the list where it has been before...
             m_uNext[u] = m_firstFreeBinding; //... and add it to the free list
             m_firstFreeBinding = u;
         }

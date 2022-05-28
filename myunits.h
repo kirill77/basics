@@ -58,6 +58,7 @@ struct MyUnits
     bool operator != (T s) const { return m_value != s; }
     bool operator >= (MyUnits<_T> s) const { return m_value >= s.m_value; }
     bool operator <= (MyUnits<_T> s) const { return m_value <= s.m_value; }
+    bool operator >= (T s) const { return m_value >= s; }
     bool operator <= (T s) const { return m_value <= s; }
     bool operator < (MyUnits<_T> s) const { return m_value < s.m_value; }
     bool operator < (T s) const { return m_value < s; }
