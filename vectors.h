@@ -19,7 +19,7 @@
 				{ nvAssert(i < n); return m_data[i]; } \
 			/* Conversion to bool is not allowed (otherwise would \
 			   happen implicitly through array conversions) */ \
-            rtvector() { } \
+            rtvector() { for (NvU32 u = 0; u < n; ++u) { m_data[u] = 0; } } \
             rtvector(std::initializer_list<T> inputs) { nvAssert(inputs.size() == n); for (NvU32 u = 0; u < n; ++u) m_data[u] = inputs.begin()[u]; } \
             void set(T s) { for (int i = 0; i < n; ++i) m_data[i] = s; } \
             private: operator bool();

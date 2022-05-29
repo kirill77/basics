@@ -32,40 +32,13 @@ static_assert(oaue2 > 0.99999999e15 && oaue2 < 1.0000001e15, "Contradictory time
 
 static constexpr double MY_PLANCK_CONSTANT = PLANCK_CONSTANT / TO_METERS / TO_METERS / TO_KILOGRAMS * TO_SECONDS;
 
+// alias MyUnits<T> to just T
+template <class T> using MyUnits = T;
+
 template <class _T>
-struct MyUnits
+struct MyUnits1
 {
     typedef _T T;
-    T m_value;
-
-    MyUnits() { m_value = 0; }
-    explicit MyUnits(T value) : m_value(value) { }
-    MyUnits<_T> operator -() const { return MyUnits<_T>(-m_value); }
-    MyUnits<_T> operator *=(MyUnits<_T> s) { m_value *= s.m_value; return *this; }
-    MyUnits<_T> operator *=(T s) { m_value *= s; return *this; }
-    MyUnits<_T> operator -=(MyUnits<_T> s) { m_value -= s.m_value; return *this; }
-    MyUnits<_T> operator /=(T s) { m_value /= s; return *this; }
-    MyUnits<_T> operator -(MyUnits<_T> s) const { return MyUnits<_T>(m_value - s.m_value); }
-    MyUnits<_T> operator +(MyUnits<_T> s) const { return MyUnits<_T>(m_value + s.m_value); }
-    MyUnits<_T> operator /(MyUnits<_T> s) const { return MyUnits<_T>(m_value / s.m_value); }
-    MyUnits<_T> operator /=(MyUnits<_T> s) { return MyUnits<_T>(m_value /= s.m_value); }
-    MyUnits<_T> operator /(T s) const { return MyUnits<_T>(m_value / s); }
-    MyUnits<_T> operator *(MyUnits<_T> s) const { return MyUnits<_T>(m_value * s.m_value); }
-    MyUnits<_T> operator *(T s) const { return MyUnits<_T>(m_value * s); }
-    bool operator == (MyUnits<_T> s) const { return m_value == s.m_value; }
-    bool operator == (T s) const { return m_value == s; }
-    bool operator != (MyUnits<_T> s) const { return m_value != s.m_value; }
-    bool operator != (T s) const { return m_value != s; }
-    bool operator >= (MyUnits<_T> s) const { return m_value >= s.m_value; }
-    bool operator <= (MyUnits<_T> s) const { return m_value <= s.m_value; }
-    bool operator >= (T s) const { return m_value >= s; }
-    bool operator <= (T s) const { return m_value <= s; }
-    bool operator < (MyUnits<_T> s) const { return m_value < s.m_value; }
-    bool operator < (T s) const { return m_value < s; }
-    bool operator > (MyUnits<_T> s) const { return m_value > s.m_value; }
-    bool operator > (T s) const { return m_value > s; }
-
-    template <class T1> MyUnits<T> operator +=(MyUnits<T1> s) { m_value += (T)s.m_value; return *this; }
 
     //*** constructors
     static MyUnits<T> second() { return MyUnits<T>((T)(1. / TO_SECONDS)); }
@@ -87,24 +60,24 @@ struct MyUnits
     static MyUnits<T> evalPressure(MyUnits<T> fTtlKinEnergy, MyUnits<T> fVolume) { nvAssert(MyUnitsTest::wasTested()); return fTtlKinEnergy * (2./3) / fVolume; }
 
     // convertion between kinetic energy and temperature
-    T toCelcius() const { return (T)(m_value * (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS) - 273.15); }
+    static T toCelcius(MyUnits<T> fValue) { return (T)(fValue * (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS) - 273.15); }
     static MyUnits<T> fromCelcius(T fValue) { return MyUnits<T>((fValue + 273.15) / (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
 
     //*** base units
-    T toKilograms() { return (T)(m_value * TO_KILOGRAMS); }
-    T toMeters() { return (T)(m_value * TO_METERS); }
-    T toAngstroms() { return (T)(m_value * (TO_METERS * 1e10)); }
-    T toSeconds() { return (T)m_value * TO_SECONDS; }
-    T toColoumbs() { return (T)(m_value * TO_COLOUMB); }
+    static T toKilograms(MyUnits<T> fValue) { return (T)(fValue * TO_KILOGRAMS); }
+    static T toMeters(MyUnits<T> fValue) { return (T)(fValue * TO_METERS); }
+    static T toAngstroms(MyUnits<T> fValue) { return (T)(fValue * (TO_METERS * 1e10)); }
+    static T toSeconds(MyUnits<T> fValue) { return (T)fValue * TO_SECONDS; }
+    static T toColoumbs(MyUnits<T> fValue) { return (T)(fValue * TO_COLOUMB); }
 
     //*** derived units
-    T toNewtons() const { return (T)(m_value * (TO_KILOGRAMS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toNanoseconds() const { return (T)(m_value * TO_NANOSECONDS); }
-    T toFemtoseconds() const { return (T)(m_value * TO_FEMTOSECONDS); }
-    T toMetersPerSecond2() const { return (T)(m_value * (TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toJoules() const { return (T)(m_value * (TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toKJperMole() const { return (T)(m_value * (1e-3 * AVOGADRO * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
-    T toAtmospheres() const { return (T)(m_value * (TO_KILOGRAMS / TO_SECONDS / TO_SECONDS / TO_METERS / 101325)); }
+    static T toNewtons(MyUnits<T> fValue) { return (T)(fValue * (TO_KILOGRAMS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    static T toNanoseconds(MyUnits<T> fValue) { return (T)(fValue * TO_NANOSECONDS); }
+    static T toFemtoseconds(MyUnits<T> fValue) { return (T)(fValue * TO_FEMTOSECONDS); }
+    static T toMetersPerSecond2(MyUnits<T> fValue) { return (T)(fValue * (TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    static T toJoules(MyUnits<T> fValue) { return (T)(fValue * (TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    static T toKJperMole(MyUnits<T> fValue) { return (T)(fValue * (1e-3 * AVOGADRO * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    static T toAtmospheres(MyUnits<T> fValue) { return (T)(fValue * (TO_KILOGRAMS / TO_SECONDS / TO_SECONDS / TO_METERS / 101325)); }
 };
 
 template <class T> using MyUnits3 = rtvector<MyUnits<T>, 3>;
@@ -112,23 +85,11 @@ template <class T> using MyUnits3 = rtvector<MyUnits<T>, 3>;
 namespace std
 {
     template <class T>
-    inline MyUnits<T> abs(const MyUnits<T>& s) { return MyUnits<T>(std::abs(s.m_value)); }
+    inline MyUnits<T> abs(const MyUnits<T>& s) { return MyUnits<T>(std::abs(s)); }
 };
 
-template <class T> MyUnits<T> sqrt(MyUnits<T> s) { return MyUnits<T>(::sqrt(s.m_value)); }
-template <class T> MyUnits<T> pow(MyUnits<T> s, T p) { return MyUnits<T>(::pow(s.m_value, p)); }
-
-template <class UNITS>
-inline const typename UNITS::T& removeUnits(const UNITS& s) { return (const typename UNITS::T&)s; }
-template <class UNITS, NvU32 N>
-inline const rtvector<typename UNITS::T, N> &removeUnits(const rtvector<UNITS, N>& v) { return (const rtvector<typename UNITS::T, N> &)v; }
-template <class UNITS>
-inline const BBox3<typename UNITS::T>& removeUnits(const BBox3<UNITS>& box) { return (const BBox3<typename UNITS::T> &)box; }
-
-template <class UNITS>
-inline const rtvector<UNITS, 3>& setUnits(const rtvector<typename UNITS::T, 3>& v) { return (const rtvector<UNITS, 3> &)v; }
-template <class UNITS>
-inline const BBox3<UNITS>& setUnits(const BBox3<typename UNITS::T>& box) { return (const BBox3<UNITS> &)box; }
+template <class T> MyUnits<T> sqrt(MyUnits<T> s) { return MyUnits<T>(::sqrt(s)); }
+template <class T> MyUnits<T> pow(MyUnits<T> s, T p) { return MyUnits<T>(::pow(s, p)); }
 
 template <class T>
 MyUnits<T> coloumbLaw(MyUnits<T> fCharge1, MyUnits<T> fCharge2, MyUnits<T> fDist, MyUnits<T> fDistSQR)
@@ -146,7 +107,7 @@ rtvector<MyUnits<T>, 3> coloumbLaw(const rtvector<MyUnits<T>, 3> &dstPos, MyUnit
     MyUnits<T> fDistSqr = lengthSquared(vDir);
     nvAssert(fDistSqr > 1e-15);
     MyUnits<T> fDist = sqrt(fDistSqr);
-    nvAssert(dstCharge.m_value * srcCharge.m_value != 0); // performance warning
+    nvAssert(dstCharge * srcCharge != 0); // performance warning
     MyUnits<T> fForce = coloumbLaw<T>(dstCharge, srcCharge, fDist, fDistSqr);
     auto vForce = vDir * (fForce / fDist);
 
@@ -176,8 +137,8 @@ template <class T1, class T2>
 rtvector<MyUnits<T2>, 3> newtonLaw(MyUnits<T1> fMass, const rtvector<MyUnits<T2>, 3>& vForce)
 {
     nvAssert(MyUnitsTest::wasTested());
-    nvAssert(fMass.m_value > 0);
-    return vForce / MyUnits<T2>(fMass.m_value);
+    nvAssert(fMass > 0);
+    return vForce / MyUnits<T2>(fMass);
 }
 
 template <class T>

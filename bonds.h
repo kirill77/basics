@@ -77,8 +77,8 @@ struct BondsDataBase
             if (!isCovalentBond) fPow6 = MyUnits<T>(); // remove attractive term for non-covalent bonds
             out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
             out.fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
-            out.fNormalizedForceTimesR = (out.fForceTimesR / m_fExtremalForce).m_value;
-            nvAssert(!isnan(out.fForceTimesR.m_value));
+            out.fNormalizedForceTimesR = (out.fForceTimesR / m_fExtremalForce);
+            nvAssert(!isnan(out.fForceTimesR));
             return true;
         }
     private:
@@ -219,7 +219,7 @@ struct Force
         if (hasForce)
         {
             outForceData.vForce = vDir * (out.fForceTimesR / fDistSqr);
-            outForceData.fNormalizedForce = out.fNormalizedForceTimesR / sqrt(fDistSqr.m_value);
+            outForceData.fNormalizedForce = out.fNormalizedForceTimesR / sqrt(fDistSqr);
             nvAssert(outForceData.fNormalizedForce < 1.01);
         }
         return hasForce;
