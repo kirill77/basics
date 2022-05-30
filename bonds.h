@@ -19,84 +19,90 @@ const NvU32 NPROTONS_H = 1;
 const NvU32 MAX_ELECTRONS_PER_BOND = 3;
 typedef NvU32 ATOM_KEY;
 
+// bond length and energy, and corresponding lennard-jones parameters
+template <class T>
+struct LJ_Out
+{
+    T fForceTimesR, fPotential;
+    T fNormalizedForceTimesR; // at extremal force point this equals to just R (because 1 * R)
+};
+
+template <class T>
+struct EBond
+{
+    static const T s_zeroForceDist, s_zeroForceDistSqr;
+
+    EBond() { }
+    static constexpr NvU32 MAX_ALLOWED_ENERGY_KJ_PER_MOLE = 600; // O-O bond energy is 140 KJ per mole
+    EBond(MyUnits<T> fBondLength, MyUnits<T> fBondEnergy)
+    {
+#if ASSERT_ONLY_CODE
+        m_fDbgBondLength = fBondLength;
+#endif
+        m_fLength = fBondLength;
+        m_fLengthSqr = sqr(m_fLength);
+        m_fDissocLengthSqr = sqr(m_fLength * 2); // TODO: this is ad-hoc - figure out better way
+        m_fAssocLengthSqr = sqr(m_fLength * 1.5);
+        // we need to compute sigma and epsilon to match fBondLength and fBondEnergy
+        m_fSigma = fBondLength * pow(2, -1. / 6);
+        m_fEpsilon = fBondEnergy;
+        // solved in wolfram:
+        // fDistSqr = fDist*fDist
+        // fSigma = fBondLength * 2 ^ (-1. / 6)
+        // fPow2 = fSigma * fSigma / fDistSqr
+        // fPow6 = fPow2 * fPow2 * fPow2
+        // fPow12 = fPow6 * fPow6
+        // fPotential = fEpsilon * 4 * (fPow12 - fPow6)
+        // fForceTimesR = fEpsilon * 24 * (fPow12 * 2 - fPow6)
+        // dForce=D[fForceTimesR/fDist, fDist]
+        // Solve[dForce == 0, fDist]
+        MyUnits<T> fExtremalForceDist = fBondLength * 1.10868; // that value is from wolfram
+        LJ_Out<T> out;
+        m_fExtremalForce = MyUnits<T>(1); // to avoid division by zero inside lennardJones
+        bool bHasForce = lennardJones(fExtremalForceDist * fExtremalForceDist, out);
+        nvAssert(bHasForce);
+        m_fExtremalForce = out.fForceTimesR / fExtremalForceDist;
+    }
+    bool isValid() const { return m_fEpsilon > 0; }
+    MyUnits<T> getEnergy() const { return m_fEpsilon; }
+    MyUnits<T> getLength() const { return m_fLength; }
+    T getAssocLengthSqr() const { return m_fAssocLengthSqr; }
+    T getDissocLengthSqr() const { return m_fDissocLengthSqr; }
+    bool lennardJones(T fDistSqr, LJ_Out<T>& out, bool isCovalentBond = true) const
+    {
+        nvAssert(m_fEpsilon > 0 && m_fSigma > 0);
+        if (fDistSqr >= s_zeroForceDistSqr)
+            return false;
+        MyUnits<T> fPow2 = m_fSigma * m_fSigma / fDistSqr;
+        MyUnits<T> fPow6 = fPow2 * fPow2 * fPow2;
+        MyUnits<T> fPow12 = fPow6 * fPow6;
+        if (!isCovalentBond) fPow6 = MyUnits<T>(); // remove attractive term for non-covalent bonds
+        out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
+        out.fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
+        out.fNormalizedForceTimesR = (out.fForceTimesR / m_fExtremalForce);
+        nvAssert(!isnan(out.fForceTimesR));
+        return true;
+    }
+private:
+    T m_fLengthSqr = 0, m_fSigma = 0, m_fEpsilon = 0, m_fLength = 0, m_fAssocLengthSqr = 0, m_fDissocLengthSqr = 0, m_fExtremalForce = 0;
+#if ASSERT_ONLY_CODE
+    T m_fDbgBondLength;
+#endif
+};
+
 template <class T>
 struct BondsDataBase
 {
-    static MyUnits<T> s_zeroForceDist, s_zeroForceDistSqr;
-
-    // bond length and energy, and corresponding lennard-jones parameters
-    struct LJ_Out
-    {
-        MyUnits<T> fForceTimesR, fPotential;
-        T fNormalizedForceTimesR; // at extremal force point this equals to just R (because 1 * R)
-    };
-    struct EBond
-    {
-        EBond() { }
-        static constexpr NvU32 MAX_ALLOWED_ENERGY_KJ_PER_MOLE = 600; // O-O bond energy is 140 KJ per mole
-        EBond(MyUnits<T> fBondLength, MyUnits<T> fBondEnergy)
-        {
-#if ASSERT_ONLY_CODE
-            m_fDbgBondLength = fBondLength;
-#endif
-            m_fLength = fBondLength;
-            m_fLengthSqr = sqr(m_fLength);
-            m_fDissocLengthSqr = sqr(m_fLength * 2); // TODO: this is ad-hoc - figure out better way
-            // we need to compute sigma and epsilon to match fBondLength and fBondEnergy
-            m_fSigma = fBondLength * pow(2, -1. / 6);
-            m_fEpsilon = fBondEnergy;
-            // solved in wolfram:
-            // fDistSqr = fDist*fDist
-            // fSigma = fBondLength * 2 ^ (-1. / 6)
-            // fPow2 = fSigma * fSigma / fDistSqr
-            // fPow6 = fPow2 * fPow2 * fPow2
-            // fPow12 = fPow6 * fPow6
-            // fPotential = fEpsilon * 4 * (fPow12 - fPow6)
-            // fForceTimesR = fEpsilon * 24 * (fPow12 * 2 - fPow6)
-            // dForce=D[fForceTimesR/fDist, fDist]
-            // Solve[dForce == 0, fDist]
-            MyUnits<T> fExtremalForceDist = fBondLength * 1.10868; // that value is from wolfram
-            LJ_Out out;
-            m_fExtremalForce = MyUnits<T>(1); // to avoid division by zero inside lennardJones
-            bool bHasForce = lennardJones(fExtremalForceDist * fExtremalForceDist, out);
-            nvAssert(bHasForce);
-            m_fExtremalForce = out.fForceTimesR / fExtremalForceDist;
-        }
-        bool isValid() const { return m_fEpsilon > 0; }
-        MyUnits<T> getEnergy() const { return m_fEpsilon; }
-        MyUnits<T> getLength() const { return m_fLength; }
-        MyUnits<T> getDissocLengthSqr() const { return m_fDissocLengthSqr; }
-        bool lennardJones(MyUnits<T> fDistSqr, LJ_Out& out, bool isCovalentBond = true) const
-        {
-            nvAssert(m_fEpsilon > 0 && m_fSigma > 0);
-            if (fDistSqr >= s_zeroForceDistSqr)
-                return false;
-            MyUnits<T> fPow2 = m_fSigma * m_fSigma / fDistSqr;
-            MyUnits<T> fPow6 = fPow2 * fPow2 * fPow2;
-            MyUnits<T> fPow12 = fPow6 * fPow6;
-            if (!isCovalentBond) fPow6 = MyUnits<T>(); // remove attractive term for non-covalent bonds
-            out.fPotential = m_fEpsilon * 4 * (fPow12 - fPow6);
-            out.fForceTimesR = m_fEpsilon * 24 * (fPow12 * 2 - fPow6);
-            out.fNormalizedForceTimesR = (out.fForceTimesR / m_fExtremalForce);
-            nvAssert(!isnan(out.fForceTimesR));
-            return true;
-        }
-    private:
-        MyUnits<T> m_fLengthSqr, m_fSigma, m_fEpsilon, m_fLength, m_fDissocLengthSqr, m_fExtremalForce;
-#if ASSERT_ONLY_CODE
-        MyUnits<T> m_fDbgBondLength;
-#endif
-    };
     // describes different bonds that may happen between particular types of atoms (for instance O-O and O=O would be in the same ABond, but O-H would be in different ABond)
     struct ABond
     {
-        const EBond& operator[](NvU32 nElectrons) const { nvAssert(nElectrons < MAX_ELECTRONS_PER_BOND); return m_eBonds[nElectrons]; }
-        EBond& operator[](NvU32 nElectrons) { nvAssert(nElectrons < MAX_ELECTRONS_PER_BOND); return m_eBonds[nElectrons]; }
+        const EBond<T>& operator[](NvU32 nElectrons) const { nvAssert(nElectrons < MAX_ELECTRONS_PER_BOND); return m_eBonds[nElectrons]; }
+        EBond<T>& operator[](NvU32 nElectrons) { nvAssert(nElectrons < MAX_ELECTRONS_PER_BOND); return m_eBonds[nElectrons]; }
     private:
         // there can be up to 3 electrons creating the bond. more electrons = shorter length and larger energy
-        EBond m_eBonds[MAX_ELECTRONS_PER_BOND];
+        EBond<T> m_eBonds[MAX_ELECTRONS_PER_BOND];
     };
-    static inline const EBond& getEBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons) { return accessEBond(nProtons1, nProtons2, nElectrons); }
+    static inline const EBond<T>& getEBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons) { return accessEBond(nProtons1, nProtons2, nElectrons); }
     static void init();
     static const std::unordered_map<NvU32, ABond>& getABonds() { return m_aBonds; }
 
@@ -119,7 +125,7 @@ private:
         nvAssert(nProtons1 <= NPROTONS_MAX && nProtons2 <= NPROTONS_MAX);
         return nProtons1 * NPROTONS_MAX + nProtons2;
     }
-    static inline EBond& accessEBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons)
+    static inline EBond<T>& accessEBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons)
     {
         NvU32 key = computeAtomDatasKey(nProtons1, nProtons2);
         return m_aBonds[key][nElectrons];
@@ -133,36 +139,19 @@ private:
 template <class T>
 struct Atom
 {
-    explicit Atom(NvU32 nProtons = 1) : m_nBondedAtoms(0), m_nProtons(nProtons), m_uValence(BondsDataBase<T>::getElement(m_nProtons).m_uValence)
+    explicit Atom(NvU32 nProtons = 1) : m_nProtons(nProtons), m_uValence(BondsDataBase<T>::getElement(m_nProtons).m_uValence), m_nCovBonds(0)
     {
-        for (NvU32 u = 0; u < m_bondedAtoms.size(); ++u) m_bondedAtoms[u] = -1;
         nvAssert(m_uValence != 0); // we don't work with noble gasses
     }
 
     NvU32 getNProtons() const { return m_nProtons; }
     MyUnits<T> getMass() const { return BondsDataBase<T>::getElement(m_nProtons).m_fMass; }
     NvU32 getValence() const { return m_uValence; }
-    NvU32 getNBonds() const { return m_nBondedAtoms; }
-    NvU32 getBond(NvU32 uBond) const { nvAssert(uBond < m_nBondedAtoms); return m_bondedAtoms[uBond]; }
-
-    void addBond(NvU32 uAtom)
+    NvU32 getNCovBonds() const { return m_nCovBonds; }
+    void setNCovBonds(NvU32 nCovBonds)
     {
-        nvAssert(m_nBondedAtoms < m_uValence);
-        m_bondedAtoms[m_nBondedAtoms] = uAtom;
-        nvAssert(m_bondedAtoms[m_nBondedAtoms] == uAtom); // check that type conversion didn't loose information
-        ++m_nBondedAtoms;
-    }
-    void removeBond(NvU32 uAtom)
-    {
-        for (NvU32 u = 0; ; ++u)
-        {
-            nvAssert(u < m_nBondedAtoms);
-            if (m_bondedAtoms[u] == uAtom)
-            {
-                m_bondedAtoms[u] = m_bondedAtoms[--m_nBondedAtoms];
-                return;
-            }
-        }
+        m_nCovBonds = nCovBonds;
+        nvAssert(m_nCovBonds == nCovBonds);
     }
 
     rtvector<MyUnits<T>, 3> m_vPos, m_vSpeed;
@@ -174,11 +163,10 @@ private:
         struct
         {
             NvU32 m_nProtons : 8;
-            NvU32 m_nBondedAtoms : 3;
             NvU32 m_uValence : 3;
+            NvU32 m_nCovBonds : 3;
         };
     };
-    std::array<unsigned short, 4> m_bondedAtoms;
 };
 
 template <class T>
@@ -213,8 +201,8 @@ struct Force
     {
         rtvector<MyUnits<T>, 3> vDir = w.computeDir(atom1, atom2);
         MyUnits<T> fDistSqr = dot(vDir, vDir);
-        typename BondsDataBase<T>::LJ_Out out;
-        auto& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
+        LJ_Out<T> out;
+        const EBond<T>& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
         bool hasForce = eBond.lennardJones(fDistSqr, out, m_isCovalentBond);
         if (hasForce)
         {
@@ -224,53 +212,60 @@ struct Force
         }
         return hasForce;
     }
+    bool createCovalentBondIfNeeded(Atom<T>& atom1, Atom<T>& atom2, T fDistSqr)
+    {
+        if (isCovalentBond() || atom1.getNCovBonds() >= atom1.getValence() || atom2.getNCovBonds() >= atom2.getValence())
+            return false;
+        const EBond<T>& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
+        if (fDistSqr > eBond.getAssocLengthSqr())
+            return false;
+        setCovalentBond(atom1, atom2);
+        return true;
+    }
     // returns true if force is now zero, returns false otherwise
     template <class WRAPPER>
     bool dissociateWeakBond(Atom<T> &atom1, Atom<T> &atom2, const WRAPPER &w)
     {
         nvAssert(dbgAreIndicesSane(atom1, atom2));
-        rtvector<MyUnits<T>, 3> vDir = w.computeDir(atom1, atom2);
+        rtvector<T, 3> vDir = w.computeDir(atom1, atom2);
         auto fDistSqr = dot(vDir, vDir);
 
-        auto& bond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
+        const EBond<T>& bond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
         // if atoms are too far apart - erase the force
-        if (fDistSqr >= BondsDataBase<T>::s_zeroForceDistSqr)
+        if (fDistSqr >= EBond<T>::s_zeroForceDistSqr)
         {
+            if (isCovalentBond())
+            {
+                dropCovalentBond(atom1, atom2);
+            }
             return true;
         }
-
-#if 0
-        if (!isCovalentBond())
+        if (isCovalentBond() && fDistSqr >= bond.getDissocLengthSqr())
         {
-            // if this force is not yet covalent bond and atoms have vacant orbitals - we make this force a covalent bond here
-            if (fDistSqr < bond.getDissocLengthSqr() && atom1.getNBonds() < atom1.getValence() && atom2.getNBonds() < atom2.getValence())
-            {
-                atom1.addBond(getAtom2Index());
-                atom2.addBond(getAtom1Index());
-                setCovalentBond();
-            }
+            dropCovalentBond(atom1, atom2);
         }
-        else
-        {
-            // check covalent bond threshold - it's smaller than global zero-force threshold
-            if (isCovalentBond() && fDistSqr >= bond.getDissocLengthSqr())
-            {
-                dropCovalentBond();
-                atom1.removeBond(getAtom2Index());
-                atom2.removeBond(getAtom1Index());
-            }
-        }
-#endif
 
         return false;
     }
 
     bool shouldDraw() const { return m_isCovalentBond; } // should we draw this?
     bool isCovalentBond() const { return m_isCovalentBond; }
-    void setCovalentBond() { nvAssert(m_isCovalentBond == 0); m_isCovalentBond = 1; }
-    void dropCovalentBond() { nvAssert(m_isCovalentBond == 1); m_isCovalentBond = 0; }
 
 private:
+    void setCovalentBond(Atom<T> &atom1, Atom<T> &atom2)
+    {
+        nvAssert(!isCovalentBond());
+        m_isCovalentBond = 1;
+        atom1.setNCovBonds(atom1.getNCovBonds() + 1);
+        atom2.setNCovBonds(atom2.getNCovBonds() + 1);
+    }
+    void dropCovalentBond(Atom<T> &atom1, Atom<T> &atom2)
+    {
+        nvAssert(isCovalentBond());
+        m_isCovalentBond = 0;
+        atom1.setNCovBonds(atom1.getNCovBonds() - 1);
+        atom2.setNCovBonds(atom2.getNCovBonds() - 1);
+    }
     NvU32 m_isCovalentBond : 1;
     NvU32 m_uAtom1 = INVALID_UINT32, m_uAtom2 = INVALID_UINT32;
 };

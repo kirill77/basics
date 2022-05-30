@@ -97,9 +97,9 @@ void MyUnitsTest::test()
                 double fEnergy = 0, fPotential = 0;
                 for ( ; vPos[1][uDim] < MyUnits1<double>::angstrom() * 10; vPos[1][uDim] += deltaX)
                 {
-                    BondsDataBase<double>::LJ_Out ljOut;
-                    rtvector<MyUnits<double>, 3> vDir = vPos[0] - vPos[1];
-                    MyUnits<double> fDistSqr = dot(vDir, vDir);
+                    LJ_Out<double> ljOut;
+                    rtvector<double, 3> vDir = vPos[0] - vPos[1];
+                    double fDistSqr = dot(vDir, vDir);
                     bool bNonZero = eBond.lennardJones(fDistSqr, ljOut);
                     if (bNonZero)
                     {
@@ -239,8 +239,8 @@ bool MyUnitsTest::s_bTested = false;
 
 std::unordered_map<ATOM_KEY, BondsDataBase<double>::ABond> BondsDataBase<double>::m_aBonds;
 std::unordered_map<NvU32, BondsDataBase<double>::Element> BondsDataBase<double>::m_elements;
-MyUnits<double> BondsDataBase<double>::s_zeroForceDist = MyUnits1<double>::angstrom() * 6;
-MyUnits<double> BondsDataBase<double>::s_zeroForceDistSqr = BondsDataBase<double>::s_zeroForceDist * BondsDataBase<double>::s_zeroForceDist;
+const double EBond<double>::s_zeroForceDist = MyUnits1<double>::angstrom() * 6;
+const double EBond<double>::s_zeroForceDistSqr = EBond<double>::s_zeroForceDist * EBond<double>::s_zeroForceDist;
 
 template <class T>
 void BondsDataBase<T>::init()
@@ -257,7 +257,7 @@ template <class T>
 void BondsDataBase<T>::setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons, MyUnits<T> fBondLength, MyUnits<T> fBondEnergy)
 {
     auto& eBond = accessEBond(nProtons1, nProtons2, nElectrons);
-    eBond = EBond(fBondLength, fBondEnergy);
+    eBond = EBond<T>(fBondLength, fBondEnergy);
     accessEBond(nProtons2, nProtons1, nElectrons) = eBond;
 }
 template <class T>

@@ -173,8 +173,6 @@ struct ForceMap
     {
         m_nAtoms = nAtoms;
         m_bindings.init(nAtoms);
-        m_nCovalentBonds.resize((nAtoms + 7) / 8);
-        std::fill(m_nCovalentBonds.begin(), m_nCovalentBonds.end(), 0);
     }
     bool isValid(NvU32 uForce) const { return m_forces[uForce].isValid(); }
     size_t size() const { return m_forces.size(); }
@@ -220,16 +218,6 @@ struct ForceMap
         m_firstUnusedForce = uDissociatedForce;
         nvAssert(!force.isValid());
     }
-    inline NvU32 getNCovalentBonds(NvU32 uAtom) const
-    {
-        return (m_nCovalentBonds[uAtom / 8] >> (uAtom & 7)) & 0xf;
-    }
-    inline void setNCovalentBonds(NvU32 uAtom, NvU32 n)
-    {
-        nvAssert(n <= 15);
-        NvU32 mask = 0xf << (uAtom & 7);
-        m_nCovalentBonds[uAtom / 8] = (m_nCovalentBonds[uAtom / 8] & ~mask) | (n << (uAtom & 7));
-    }
 
 private:
     NvU32 allocateNewForce(NvU32 uAtom1, NvU32 uAtom2)
@@ -253,6 +241,5 @@ private:
     }
     NvU32 m_nAtoms = 0, m_firstUnusedForce = INVALID_UINT32;
     std::vector<Force<T>> m_forces;
-    std::vector<NvU32> m_nCovalentBonds; // number of covalent bonds per atom (4 bits per atom)
     ForceBindings m_bindings;
 };
