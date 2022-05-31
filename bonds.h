@@ -42,7 +42,7 @@ struct EBond
         m_fLength = fBondLength;
         m_fLengthSqr = sqr(m_fLength);
         m_fDissocLengthSqr = sqr(m_fLength * 2); // TODO: this is ad-hoc - figure out better way
-        m_fAssocLengthSqr = sqr(m_fLength * 1.5);
+        m_fAssocLengthSqr = sqr(m_fLength * 2);
         // we need to compute sigma and epsilon to match fBondLength and fBondEnergy
         m_fSigma = fBondLength * pow(2, -1. / 6);
         m_fEpsilon = fBondEnergy;
