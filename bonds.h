@@ -34,18 +34,18 @@ struct EBond
 
     EBond() { }
     static constexpr NvU32 MAX_ALLOWED_ENERGY_KJ_PER_MOLE = 600; // O-O bond energy is 140 KJ per mole
-    EBond(MyUnits<T> fBondLength, MyUnits<T> fBondEnergy)
+    EBond(double fBondLength, double fBondEnergy)
     {
 #if ASSERT_ONLY_CODE
-        m_fDbgBondLength = fBondLength;
+        m_fDbgBondLength = (T)fBondLength;
 #endif
-        m_fLength = fBondLength;
-        m_fLengthSqr = sqr(m_fLength);
-        m_fDissocLengthSqr = sqr(m_fLength * 2); // TODO: this is ad-hoc - figure out better way
-        m_fAssocLengthSqr = sqr(m_fLength * 2);
+        m_fLength = (T)fBondLength;
+        m_fLengthSqr = (T)sqr(fBondLength);
+        m_fDissocLengthSqr = (T)sqr(fBondLength * 2); // TODO: this is ad-hoc - figure out better way
+        m_fAssocLengthSqr = (T)sqr(fBondLength * 2);
         // we need to compute sigma and epsilon to match fBondLength and fBondEnergy
-        m_fSigma = fBondLength * pow(2, -1. / 6);
-        m_fEpsilon = fBondEnergy;
+        m_fSigma = (T)(fBondLength * pow(2, -1. / 6));
+        m_fEpsilon = (T)fBondEnergy;
         // solved in wolfram:
         // fDistSqr = fDist*fDist
         // fSigma = fBondLength * 2 ^ (-1. / 6)
@@ -56,7 +56,7 @@ struct EBond
         // fForceTimesR = fEpsilon * 24 * (fPow12 * 2 - fPow6)
         // dForce=D[fForceTimesR/fDist, fDist]
         // Solve[dForce == 0, fDist]
-        MyUnits<T> fExtremalForceDist = fBondLength * 1.10868; // that value is from wolfram
+        double fExtremalForceDist = fBondLength * 1.10868; // that value is from wolfram
         LJ_Out<T> out;
         m_fExtremalForce = MyUnits<T>(1); // to avoid division by zero inside lennardJones
         bool bHasForce = lennardJones(fExtremalForceDist * fExtremalForceDist, out);
@@ -108,7 +108,7 @@ struct BondsDataBase
 
     struct Element
     {
-        MyUnits<double> m_fMass, m_fRadius;
+        double m_fMass = 0, m_fRadius = 0;
         T m_fElectroNegativity = 0;
         NvU32 m_uValence = -1;
     };
@@ -131,7 +131,7 @@ private:
         return m_aBonds[key][nElectrons];
     }
     static void setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons, MyUnits<T> fBondLength, MyUnits<T> fBondEnergy);
-    static void setAtom(NvU32 nProtons, MyUnits<T> fMass, MyUnits<T> fRadius, T fElectroNegativity, NvU32 uValence);
+    static void setAtom(NvU32 nProtons, double fMass, double fRadius, double fElectroNegativity, NvU32 uValence);
     static std::unordered_map<ATOM_KEY, ABond> m_aBonds;
     static std::unordered_map<NvU32, Element> m_elements;
 };

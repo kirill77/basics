@@ -47,6 +47,7 @@ void MyUnitsTest::test()
     }
 
     BondsDataBase<double>::init();
+    BondsDataBase<float>::init();
 
     // check that we can translate between our energy and SI energy without problems
     {
@@ -150,7 +151,7 @@ void MyUnitsTest::test()
             MyUnits<double> fKinEnergy = fMass1 * fSpeedC0 * fSpeedC0 / 2;
             MyUnits<double> fTempC0 = MyUnits1<double>::evalTemperature(fKinEnergy);
             double f = MyUnits1<double>::toCelcius(fTempC0);
-            s_bTested = s_bTested && aboutEqual<double>(f, 0, 0.1);
+            s_bTested = s_bTested && abs(f - 0) < 1e-7;
             nvAssert(s_bTested);
         }
         {
@@ -237,10 +238,19 @@ void MyUnitsTest::test()
 }
 bool MyUnitsTest::s_bTested = false;
 
-std::unordered_map<ATOM_KEY, BondsDataBase<double>::ABond> BondsDataBase<double>::m_aBonds;
-std::unordered_map<NvU32, BondsDataBase<double>::Element> BondsDataBase<double>::m_elements;
-const double EBond<double>::s_zeroForceDist = MyUnits1<double>::angstrom() * 6;
-const double EBond<double>::s_zeroForceDistSqr = EBond<double>::s_zeroForceDist * EBond<double>::s_zeroForceDist;
+template <class T>
+std::unordered_map<ATOM_KEY, typename BondsDataBase<T>::ABond> BondsDataBase<T>::m_aBonds;
+template <class T>
+std::unordered_map<NvU32, typename BondsDataBase<T>::Element> BondsDataBase<T>::m_elements;
+template <class T>
+const T EBond<T>::s_zeroForceDist = MyUnits1<T>::angstrom() * 6;
+template <class T>
+const T EBond<T>::s_zeroForceDistSqr = EBond<T>::s_zeroForceDist * EBond<T>::s_zeroForceDist;
+
+template struct EBond<double>;
+template struct EBond<float>;
+template struct BondsDataBase<double>;
+template struct BondsDataBase<float>;
 
 template <class T>
 void BondsDataBase<T>::init()
@@ -261,11 +271,11 @@ void BondsDataBase<T>::setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectron
     accessEBond(nProtons2, nProtons1, nElectrons) = eBond;
 }
 template <class T>
-void BondsDataBase<T>::setAtom(NvU32 nProtons, MyUnits<T> fMass, MyUnits<T> fRadius, T fElectroNegativity, NvU32 uValence)
+void BondsDataBase<T>::setAtom(NvU32 nProtons, double fMass, double fRadius, double fElectroNegativity, NvU32 uValence)
 {
     auto& element = m_elements[nProtons];
-    element.m_fMass = fMass;
-    element.m_fRadius = fRadius;
-    element.m_fElectroNegativity = fElectroNegativity;
+    element.m_fMass = (T)fMass;
+    element.m_fRadius = (T)fRadius;
+    element.m_fElectroNegativity = (T)fElectroNegativity;
     element.m_uValence = uValence;
 }

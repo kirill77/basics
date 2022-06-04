@@ -18,10 +18,10 @@ static constexpr double AVOGADRO = 6.02214076e23;
 static constexpr double PLANCK_CONSTANT = 6.626070041e-34; // m^2 * kg / s
 
 // those constants define base units used at atomic scales
-static constexpr double TO_KILOGRAMS = 1e-20;
-static constexpr double TO_METERS = 1e-8;
+static constexpr double TO_KILOGRAMS = 1e-26;
+static constexpr double TO_METERS = 1e-10;
 static constexpr double TO_COLOUMB = ELECTRON_CHARGE;
-constexpr double TO_SECONDS = 1e-9;
+constexpr double TO_SECONDS = 1e-14;
 constexpr double TO_NANOSECONDS = TO_SECONDS * 1e9;
 constexpr double TO_FEMTOSECONDS = TO_SECONDS * 1e15;
 
@@ -57,11 +57,11 @@ struct MyUnits1
     static MyUnits<T> kJperMole() { return MyUnits<T>((T)(1e3 / AVOGADRO / TO_KILOGRAMS / TO_METERS / TO_METERS * TO_SECONDS * TO_SECONDS)); }
     static MyUnits<T> joule() { return MyUnits<T>((T)(1. / TO_KILOGRAMS / TO_METERS / TO_METERS * TO_SECONDS * TO_SECONDS)); }
     static MyUnits<T> evalTemperature(MyUnits<T> fAvgKinEnergy) { nvAssert(MyUnitsTest::wasTested()); return fAvgKinEnergy; }
-    static MyUnits<T> evalPressure(MyUnits<T> fTtlKinEnergy, MyUnits<T> fVolume) { nvAssert(MyUnitsTest::wasTested()); return fTtlKinEnergy * (2./3) / fVolume; }
+    static double evalPressure(MyUnits<T> fTtlKinEnergy, MyUnits<T> fVolume) { nvAssert(MyUnitsTest::wasTested()); return fTtlKinEnergy * (2./3) / fVolume; }
 
     // convertion between kinetic energy and temperature
-    static T toCelcius(MyUnits<T> fValue) { return (T)(fValue * (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS) - 273.15); }
-    static MyUnits<T> fromCelcius(T fValue) { return MyUnits<T>((fValue + 273.15) / (57206.3436653589e-2 * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
+    static T toCelcius(MyUnits<T> fValue) { return (T)(fValue * (57206.3436653589e18 * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS) - 273.15); }
+    static MyUnits<T> fromCelcius(T fValue) { return MyUnits<T>((fValue + 273.15) / (57206.3436653589e18 * TO_KILOGRAMS * TO_METERS * TO_METERS / TO_SECONDS / TO_SECONDS)); }
 
     //*** base units
     static T toKilograms(MyUnits<T> fValue) { return (T)(fValue * TO_KILOGRAMS); }
