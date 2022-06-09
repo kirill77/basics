@@ -130,7 +130,7 @@ private:
         NvU32 key = computeAtomDatasKey(nProtons1, nProtons2);
         return m_aBonds[key][nElectrons];
     }
-    static void setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons, MyUnits<T> fBondLength, MyUnits<T> fBondEnergy);
+    static void setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons, double fBondLength, double fBondEnergy);
     static void setAtom(NvU32 nProtons, double fMass, double fRadius, double fElectroNegativity, NvU32 uValence);
     static std::unordered_map<ATOM_KEY, ABond> m_aBonds;
     static std::unordered_map<NvU32, Element> m_elements;
@@ -180,7 +180,7 @@ struct Force
 {
     Force() : m_isCovalentBond(0) { }
 
-    Force(NvU32 uAtom1, NvU32 uAtom2) : m_uAtom1(uAtom1), m_uAtom2(uAtom2), m_isCovalentBond(0)
+    Force(NvU32 uAtom1, NvU32 uAtom2) : m_uAtom1(uAtom1), m_uAtom2(uAtom2), m_isCovalentBond(0), m_prevCovalentState(0)
     {
         nvAssert(m_uAtom1 != m_uAtom2 || !isValid());
     }
@@ -250,6 +250,8 @@ struct Force
 
     bool shouldDraw() const { return m_isCovalentBond; } // should we draw this?
     bool isCovalentBond() const { return m_isCovalentBond; }
+    void setPrevCovalentState(bool value) { m_prevCovalentState = value; }
+    bool getPrevCovalentState() const { return m_prevCovalentState; }
 
 private:
     void setCovalentBond(Atom<T> &atom1, Atom<T> &atom2)
@@ -267,5 +269,6 @@ private:
         atom2.setNCovBonds(atom2.getNCovBonds() - 1);
     }
     NvU32 m_isCovalentBond : 1;
+    NvU32 m_prevCovalentState : 1;
     NvU32 m_uAtom1 = INVALID_UINT32, m_uAtom2 = INVALID_UINT32;
 };

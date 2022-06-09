@@ -264,7 +264,7 @@ void BondsDataBase<T>::init()
     setBond(NPROTONS_H, NPROTONS_H, 1, MyUnits1<T>::angstrom() * 0.74, MyUnits1<T>::kJperMole() * 436);
 }
 template <class T>
-void BondsDataBase<T>::setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons, MyUnits<T> fBondLength, MyUnits<T> fBondEnergy)
+void BondsDataBase<T>::setBond(NvU32 nProtons1, NvU32 nProtons2, NvU32 nElectrons, double fBondLength, double fBondEnergy)
 {
     auto& eBond = accessEBond(nProtons1, nProtons2, nElectrons);
     eBond = EBond<T>(fBondLength, fBondEnergy);
