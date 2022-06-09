@@ -56,9 +56,9 @@ struct EBond
         // fForceTimesR = fEpsilon * 24 * (fPow12 * 2 - fPow6)
         // dForce=D[fForceTimesR/fDist, fDist]
         // Solve[dForce == 0, fDist]
-        double fExtremalForceDist = fBondLength * 1.10868; // that value is from wolfram
+        T fExtremalForceDist = (T)(fBondLength * 1.10868); // that value is from wolfram
         LJ_Out<T> out;
-        m_fExtremalForce = MyUnits<T>(1); // to avoid division by zero inside lennardJones
+        m_fExtremalForce = 1; // to avoid division by zero inside lennardJones
         bool bHasForce = lennardJones(fExtremalForceDist * fExtremalForceDist, out);
         nvAssert(bHasForce);
         m_fExtremalForce = out.fForceTimesR / fExtremalForceDist;
@@ -145,7 +145,7 @@ struct Atom
     }
 
     NvU32 getNProtons() const { return m_nProtons; }
-    MyUnits<T> getMass() const { return BondsDataBase<T>::getElement(m_nProtons).m_fMass; }
+    T getMass() const { return (T)BondsDataBase<T>::getElement(m_nProtons).m_fMass; }
     NvU32 getValence() const { return m_uValence; }
     NvU32 getNCovBonds() const { return m_nCovBonds; }
     void setNCovBonds(NvU32 nCovBonds)
