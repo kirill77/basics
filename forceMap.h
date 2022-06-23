@@ -89,6 +89,13 @@ struct ForceBindings
         m_uNext.resize(m_nAtoms);
         std::fill(m_uNext.begin(), m_uNext.end(), INVALID_UINT32);
     }
+    NvU32 getExistingBindingSlot(NvU32 uAtom1, NvU32 uAtom2, NvU32& uOutSlot) const
+    {
+        NvU32 uPrev = 0;
+        NvU32 u = findSlotForForce(uAtom1, uAtom2, uOutSlot, uPrev);
+        nvAssert(u != INVALID_UINT32); // must exist
+        return u;
+    }
     NvU32 findOrCreateBindingSlot(NvU32 uAtom1, NvU32 uAtom2, NvU32& uOutSlot)
     {
         NvU32 u = 0, uPrev = 0;
@@ -121,13 +128,14 @@ struct ForceBindings
         }
     }
     SSEForceBinding& operator[](NvU32 u) { return m_atomLists[u]; }
+    const SSEForceBinding& operator[](NvU32 u) const { return m_atomLists[u]; }
 
 private:
-    NvU32 findSlotForForce(NvU32 uAtom1, NvU32 uAtom2, NvU32& uOutSlot, NvU32 &_uPrev)
+    NvU32 findSlotForForce(NvU32 uAtom1, NvU32 uAtom2, NvU32& uOutSlot, NvU32 &_uPrev) const
     {
         for (NvU32 u = uAtom1, uPrev = INVALID_UINT32; ; )
         {
-            SSEForceBinding& p1 = m_atomLists[u];
+            const SSEForceBinding& p1 = m_atomLists[u];
             if (p1.findBoundAtom(uAtom2, uOutSlot))
             {
                 _uPrev = uPrev;
@@ -176,6 +184,14 @@ struct ForceMap
     }
     bool isValid(NvU32 uForce) const { return m_forces[uForce].isValid(); }
     size_t size() const { return m_forces.size(); }
+    NvU32 findExistingForceIndex(NvU32 uAtom1, NvU32 uAtom2) const
+    {
+        NvU32 uSlot = 0;
+        NvU32 u = m_bindings.getExistingBindingSlot(uAtom1, uAtom2, uSlot);
+        NvU32 uForce = m_bindings[u].getForceIndex(uSlot);
+        nvAssert(uForce != INVALID_UINT32);
+        return uForce;
+    }
     NvU32 createForce(NvU32 uAtom1, NvU32 uAtom2)
     {
         // if such force already exists - just return its index

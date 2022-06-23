@@ -199,7 +199,7 @@ struct Force
     template <class WRAPPER>
     bool computeForce(const Atom<T>& atom1, const Atom<T>& atom2, const WRAPPER &w, ForceData<T> &outForceData) const
     {
-        rtvector<MyUnits<T>, 3> vDir = w.computeDir(atom1, atom2);
+        rtvector<MyUnits<T>, 3> vDir = w.computeDir(atom1.m_vPos, atom2.m_vPos);
         MyUnits<T> fDistSqr = dot(vDir, vDir);
         LJ_Out<T> out;
         const EBond<T>& eBond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
@@ -227,7 +227,7 @@ struct Force
     bool dissociateWeakBond(Atom<T> &atom1, Atom<T> &atom2, const WRAPPER &w)
     {
         nvAssert(dbgAreIndicesSane(atom1, atom2));
-        rtvector<T, 3> vDir = w.computeDir(atom1, atom2);
+        rtvector<T, 3> vDir = w.computeDir(atom1.m_vPos, atom2.m_vPos);
         auto fDistSqr = dot(vDir, vDir);
 
         const EBond<T>& bond = BondsDataBase<T>::getEBond(atom1.getNProtons(), atom2.getNProtons(), 1);
