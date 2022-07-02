@@ -98,14 +98,15 @@ rtvector<T, n> makeVector(rtvector<U, n_from> const& a)
 			typedef rtvector<type, 3> type##3; \
 			typedef rtvector<type, 4> type##4;
 
-DEFINE_CONCRETE_VECTORS(float);
-DEFINE_CONCRETE_VECTORS(double);
-//DEFINE_CONCRETE_VECTORS(half);	// !!!UNDONE: need to de-constructorize half
-DEFINE_CONCRETE_VECTORS(int);
 typedef NvU32 uint;
-DEFINE_CONCRETE_VECTORS(uint);
-//DEFINE_CONCRETE_VECTORS(byte);
-//DEFINE_CONCRETE_VECTORS(bool);
+
+namespace kirill
+{
+	DEFINE_CONCRETE_VECTORS(float);
+	DEFINE_CONCRETE_VECTORS(double);
+	DEFINE_CONCRETE_VECTORS(int);
+	DEFINE_CONCRETE_VECTORS(uint);
+}
 
 #undef DEFINE_CONCRETE_VECTORS
 
@@ -284,7 +285,7 @@ rtvector<T, n> pow(rtvector<T, n> const& a, float p)
 }
 
 template <typename T, int n>
-rtvector<bool, n> isnear(rtvector<T, n> const& a, rtvector<T, n> const& b, float epsilon = util::epsilon)
+rtvector<bool, n> isnear(rtvector<T, n> const& a, rtvector<T, n> const& b, T epsilon = (T)(std::numeric_limits<T>::epsilon * 100.))
 {
     rtvector<bool, n> result;
     for (int i = 0; i < n; ++i)
@@ -293,7 +294,7 @@ rtvector<bool, n> isnear(rtvector<T, n> const& a, rtvector<T, n> const& b, float
 }
 
 template <typename T, int n>
-rtvector<bool, n> isnear(rtvector<T, n> const& a, T b, float epsilon = util::epsilon)
+rtvector<bool, n> isnear(rtvector<T, n> const& a, T b, float epsilon = (T)(std::numeric_limits<T>::epsilon * 100.))
 {
     rtvector<bool, n> result;
     for (int i = 0; i < n; ++i)
@@ -302,7 +303,7 @@ rtvector<bool, n> isnear(rtvector<T, n> const& a, T b, float epsilon = util::eps
 }
 
 template <typename T, int n>
-rtvector<bool, n> isnear(T a, rtvector<T, n> const& b, float epsilon = util::epsilon)
+rtvector<bool, n> isnear(T a, rtvector<T, n> const& b, float epsilon = (T)(std::numeric_limits<T>::epsilon * 100.))
 {
     rtvector<bool, n> result;
     for (int i = 0; i < n; ++i)

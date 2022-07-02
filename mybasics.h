@@ -38,7 +38,7 @@ struct MyNumeric<double>
 template <class floatType>
 inline bool aboutEqual(floatType f1, floatType f2)
 {
-    typedef MyNumeric<floatType>::SubstituteUintType uintType;
+    using uintType = typename MyNumeric<floatType>::SubstituteUintType;
     const uintType topBit = MyNumeric<floatType>::topBit();
     uintType u1 = (uintType &)f1, u2 = (uintType &)f2;
     bool haveDifferentSign = (u1 ^ u2) & topBit;
