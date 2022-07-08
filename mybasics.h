@@ -7,12 +7,16 @@ typedef unsigned long long NvU64;
 
 const NvU32 INVALID_UINT32 = 0xffffffff;
 
+#ifdef __CUDA_ARCH__
+#define nvAssert(x) assert(x)
+#else
 #ifdef NDEBUG
 #define ASSERT_ONLY_CODE 0
 #define nvAssert(x)
 #else
 #define ASSERT_ONLY_CODE 1
 #define nvAssert(x) if (!(x)) { __debugbreak(); }
+#endif
 #endif
 
 #define ARRAY_ELEMENT_COUNT(x) (sizeof(x) / sizeof(x[0]))
