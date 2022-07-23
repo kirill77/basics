@@ -10,6 +10,12 @@ const NvU32 INVALID_UINT32 = 0xffffffff;
 #ifdef __CUDA_ARCH__
 #define nvAssert(x) assert(x)
 #else
+#ifndef __device__
+#define __device__
+#endif
+#ifndef __host__
+#define __host__
+#endif
 #ifdef NDEBUG
 #define ASSERT_ONLY_CODE 0
 #define nvAssert(x)
@@ -21,7 +27,7 @@ const NvU32 INVALID_UINT32 = 0xffffffff;
 
 #define ARRAY_ELEMENT_COUNT(x) (sizeof(x) / sizeof(x[0]))
 
-template <class T> inline T sqr(const T & a) { return a * a; }
+template <class T> __device__ __host__ inline T sqr(const T & a) { return a * a; }
 
 template <class T>
 class MyNumeric
