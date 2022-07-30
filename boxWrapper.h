@@ -22,15 +22,15 @@ struct BoxWrapper : public BBox3<MyUnits<T>>
                 auto fOvershoot = (this->m_vMin[uDim] - vNewPos[uDim]);
                 int nBoxSizes = 1 + (int)(fOvershoot / m_fBoxSize);
                 vNewPos[uDim] += m_fBoxSize * nBoxSizes;
-                nvAssert(this->m_vMin[uDim] <= vNewPos[uDim] && vNewPos[uDim] <= this->m_vMax[uDim]);
+                nvAssert(this->m_vMin[uDim] <= vNewPos[uDim] && vNewPos[uDim] < this->m_vMax[uDim]);
                 continue;
             }
-            if (vNewPos[uDim] > this->m_vMax[uDim])
+            if (vNewPos[uDim] >= this->m_vMax[uDim])
             {
                 auto fOvershoot = (vNewPos[uDim] - this->m_vMax[uDim]);
                 int nBoxSizes = 1 + (int)(fOvershoot / m_fBoxSize);
                 vNewPos[uDim] -= m_fBoxSize * nBoxSizes;
-                nvAssert(this->m_vMin[uDim] <= vNewPos[uDim] && vNewPos[uDim] <= this->m_vMax[uDim]);
+                nvAssert(this->m_vMin[uDim] <= vNewPos[uDim] && vNewPos[uDim] < this->m_vMax[uDim]);
             }
         }
         nvAssert(this->includes(vNewPos)); // atom must be inside the bounding box
