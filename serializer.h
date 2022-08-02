@@ -21,6 +21,16 @@ struct ISerializer
     }
 
     template <class T>
+    void serializeStdArray(std::vector<T>& p)
+    {
+        serializeArraySize(p);
+        if (p.size() > 0)
+        {
+            serializePreallocatedMem(&p[0], sizeof(p[0]) * (NvU32)p.size());
+        }
+    }
+
+    template <class T>
     void serializeArrayOfPointers(std::vector<T*>& p)
     {
         // serialize array size

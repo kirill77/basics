@@ -110,7 +110,7 @@ struct BondsDataBase
     {
         double m_fMass = 0, m_fRadius = 0;
         T m_fElectroNegativity = 0;
-        NvU32 m_uValence = -1;
+        NvU32 m_uValence = 0xffffffff;
     };
     static const Element& getElement(NvU32 nProtons)
     {
