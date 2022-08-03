@@ -24,6 +24,7 @@
   <ItemGroup>
     <ClInclude Include="myunits.h" />
     <ClInclude Include="gradientDescent.h" />
+    <ClInclude Include="serializer.h" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>16.0</VCProjectVersion>

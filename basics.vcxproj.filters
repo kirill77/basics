@@ -26,5 +26,8 @@
     <ClInclude Include="gradientDescent.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="serializer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
 </Project>
