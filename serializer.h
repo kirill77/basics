@@ -107,11 +107,7 @@ struct ISerializer
     {
         return nullptr; // by default indents are ignored
     }
-    void notifyIndentDestroyed(Indent *p)
-    {
-        nvAssert(p == m_pIndents.top());
-        m_pIndents.pop();
-    }
+    virtual void notifyIndentDestroyed(Indent *p) { }
 
 protected:
     bool m_isReading = false;
@@ -121,7 +117,6 @@ protected:
             return path;
         return std::wstring(L"c:\\atomNets\\") + path.c_str();
     }
-    std::stack<Indent *> m_pIndents;
 };
 
 struct MyWriter : public ISerializer
@@ -190,10 +185,17 @@ struct TextWriter : public ISerializer
     {
         printCurIndent();
         nvAssert(m_fp != nullptr);
-        fprintf(m_fp, "%s\n", sName);
+        fprintf(m_fp, "%s {\n", sName);
         std::shared_ptr<Indent> p = std::make_shared<Indent>(*this, sName);
         m_pIndents.push(p.get());
         return p;
+    }
+    virtual void notifyIndentDestroyed(Indent* p) override
+    {
+        nvAssert(p == m_pIndents.top());
+        m_pIndents.pop();
+        printCurIndent();
+        fprintf(m_fp, "}\n");
     }
 
 private:
@@ -206,6 +208,7 @@ private:
         }
     }
     FILE* m_fp = nullptr;
+    std::stack<Indent*> m_pIndents;
 };
 
 inline Indent::~Indent()
