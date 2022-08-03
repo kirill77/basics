@@ -9,11 +9,10 @@
 
 struct Indent
 {
-    Indent(struct ISerializer& s, const char* sName) : m_serializer(s), m_sName(sName) { }
+    Indent(struct ISerializer& s, const char* sName) : m_serializer(s) { }
     ~Indent();
 private:
     ISerializer& m_serializer;
-    const char* m_sName = nullptr;
 };
 
 struct ISerializer
