@@ -178,6 +178,18 @@ struct TextWriter : public ISerializer
         printCurIndent();
         nvAssert(m_fp != nullptr);
         fprintf(m_fp, "%s:\n", sName);
+        if (memSizeInBytes > 16 && memSizeInBytes % sizeof(float) == 0)
+        {
+            float* p = (float*)pMem;
+            int n = memSizeInBytes / sizeof(float);
+            printCurIndent();
+            fprintf(m_fp, "  ");
+            for (int i = 0; i < n; ++i)
+            {
+                fprintf(m_fp, "%f, ", p[i]);
+            }
+            fprintf(m_fp, "\n");
+        }
     }
 
     virtual std::shared_ptr<Indent> pushIndent(const char* sName) override
