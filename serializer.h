@@ -132,8 +132,11 @@ struct MyWriter : public ISerializer
     }
     virtual void serializePreallocatedMem(const char *sName, void* pMem, NvU32 memSizeInBytes) override
     {
-        nvAssert(m_fp != nullptr && memSizeInBytes > 0);
-        fwrite(pMem, 1, memSizeInBytes, m_fp);
+        if (memSizeInBytes > 0)
+        {
+            nvAssert(m_fp != nullptr);
+            fwrite(pMem, 1, memSizeInBytes, m_fp);
+        }
     }
 private:
     FILE* m_fp = nullptr;
