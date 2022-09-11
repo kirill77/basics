@@ -184,13 +184,24 @@ struct TextWriter : public ISerializer
         fprintf(m_fp, "%s:\n", sName);
         if (memSizeInBytes % sizeof(float) == 0)
         {
-            float* p = (float*)pMem;
             int n = memSizeInBytes / sizeof(float);
             printCurIndent();
             fprintf(m_fp, "  ");
-            for (int i = 0; i < n; ++i)
+            float* pFloats = (float*)pMem;
+            if (hasDenorms(pFloats, n))
             {
-                fprintf(m_fp, "%f, ", p[i]);
+                int* pInts = (int*)pMem;
+                for (int i = 0; i < n; ++i)
+                {
+                    fprintf(m_fp, "%d, ", pInts[i]);
+                }
+            }
+            else
+            {
+                for (int i = 0; i < n; ++i)
+                {
+                    fprintf(m_fp, "%f, ", pFloats[i]);
+                }
             }
             fprintf(m_fp, "\n");
         }
@@ -214,6 +225,17 @@ struct TextWriter : public ISerializer
     }
 
 private:
+    bool hasDenorms(float* pFloats, NvU32 n)
+    {
+        int* pInts = (int*)pFloats;
+        n = std::min(n, 30u);
+        for (NvU32 u = 0; u < n; ++u)
+        {
+            if (pInts[u] > 0 && pInts[u] < 30)
+                return true;
+        }
+        return false;
+    }
     void printCurIndent()
     {
         nvAssert(m_fp != nullptr);
