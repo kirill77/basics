@@ -41,8 +41,16 @@ struct BoxWrapper : public BBox3<MyUnits<T>>
         rtvector<MyUnits<T>, 3> vOutDir = vPos1 - vPos2;
         for (NvU32 uDim = 0; uDim < 3; ++uDim) // particles positions must wrap around the boundary of bounding box
         {
-            if (vOutDir[uDim] < -m_fHalfBoxSize) vOutDir[uDim] += m_fBoxSize;
-            else if (vOutDir[uDim] > m_fHalfBoxSize) vOutDir[uDim] -= m_fBoxSize;
+            if (vOutDir[uDim] < -m_fHalfBoxSize)
+            {
+                vOutDir[uDim] += m_fBoxSize;
+                nvAssert(vOutDir[uDim] >= -m_fHalfBoxSize);
+            }
+            else if (vOutDir[uDim] > m_fHalfBoxSize)
+            {
+                vOutDir[uDim] -= m_fBoxSize;
+                nvAssert(vOutDir[uDim] <= m_fHalfBoxSize);
+            }
         }
         return vOutDir;
     }
