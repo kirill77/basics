@@ -70,6 +70,22 @@ struct ISerializer
     }
 
     template <class T>
+    void serializeSharedPtr(const char *sName, std::shared_ptr<T>& ref)
+    {
+        NvU32 refExists = (ref != nullptr);
+        serializeSimpleType("refExists", refExists);
+        if (!refExists)
+        {
+            return;
+        }
+        if (ref == nullptr)
+        {
+            ref = std::make_shared<T>();
+        }
+        ref->serialize(sName, *this);
+    }
+
+    template <class T>
     void serializeArrayOfSharedPtrs(const char *sName, std::vector<std::shared_ptr<T>>& refs)
     {
         std::shared_ptr<Indent> pIndent = pushIndent(sName);
@@ -78,23 +94,12 @@ struct ISerializer
         // serialize each shared_ptr in the array
         for (NvU32 u = 0; u < refs.size(); ++u)
         {
-            NvU32 refExists = (refs[u] != nullptr);
-            serializeSimpleType("refExists", refExists);
-            if (!refExists)
-            {
-                continue;
-            }
-            if (refs[u] == nullptr)
-            {
-                refs[u] = std::make_shared<T>();
-            }
             char sBuffer[16];
             sprintf_s(sBuffer, "[%d]", u);
             std::shared_ptr<Indent> pIndent = pushIndent(sBuffer);
-            refs[u]->serialize(sName, *this);
+            serializeSharedPtr(nullptr , refs[u]);
         }
     }
-
 
     template <class T>
     void serializeSimpleType(const char *sName, T & value)
