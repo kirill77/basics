@@ -154,7 +154,7 @@ struct Atom
         nvAssert(m_nCovBonds == nCovBonds);
     }
 
-    rtvector<MyUnits<T>, 3> m_vPos, m_vSpeed;
+    rtvector<MyUnits<T>, 3> m_vPos, m_vSpeed, m_vNeuralPos;
 
 private:
     union
